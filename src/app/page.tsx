@@ -1,65 +1,91 @@
-import Image from "next/image";
+import { redirect } from 'next/navigation'
+import { getCurrentUser, isUserAdmin } from '@/lib/supabase/server'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
+import { ArrowRight, Shield, Users, BarChart3 } from 'lucide-react'
 
-export default function Home() {
+export default async function Home() {
+  // Check if user is authenticated
+  const user = await getCurrentUser()
+  
+  if (user) {
+    // Redirect authenticated users to dashboard
+    redirect('/dashboard')
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-linear-to-br from-background to-muted">
+      <div className="container mx-auto px-4 py-16">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-linear-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+            DNTCELL Admin Panel
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Powerful admin dashboard for managing your DNTCELL platform. 
+            Secure, efficient, and built for administrators.
           </p>
+          <div className="flex justify-center gap-4">
+            <Button asChild size="lg">
+              <Link href="/login">
+                Access Admin Panel
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <Card>
+            <CardHeader>
+              <Shield className="h-8 w-8 text-primary mb-2" />
+              <CardTitle>Secure Access</CardTitle>
+              <CardDescription>
+                Role-based authentication ensures only authorized administrators can access the system.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <Users className="h-8 w-8 text-primary mb-2" />
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>
+                Comprehensive user administration tools for managing accounts, roles, and permissions.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <BarChart3 className="h-8 w-8 text-primary mb-2" />
+              <CardTitle>Analytics Dashboard</CardTitle>
+              <CardDescription>
+                Real-time insights and analytics to monitor system performance and user activity.
+              </CardDescription>
+            </CardHeader>
+          </Card>
         </div>
-      </main>
+
+        {/* Admin Access Card */}
+        <Card className="max-w-md mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle>Administrator Access</CardTitle>
+            <CardDescription>
+              Sign in with your admin credentials to access the dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button asChild className="w-full">
+              <Link href="/login">
+                Sign In to Dashboard
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  );
+  )
 }
