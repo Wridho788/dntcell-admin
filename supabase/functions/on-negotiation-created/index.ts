@@ -6,8 +6,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ONESIGNAL_APP_ID = Deno.env.get('ONESIGNAL_APP_ID')
-const ONESIGNAL_API_KEY = Deno.env.get('ONESIGNAL_API_KEY')
+const ONESIGNAL_APP_ID = Deno.env.get('bc61c070-c6d1-450e-a770-1e06970c6194')
+const ONESIGNAL_API_KEY = Deno.env.get('os_v2_app_xrq4a4gg2fcq5j3qdydjoddbsrxkrnd5nfxeoynqvfbvksaobocb56vfkurtzpn7jfbuvepnmv7hq2f2eukgwvrkxtoisk2k4cy6byy')
 
 interface NegotiationPayload {
   type: 'INSERT'
