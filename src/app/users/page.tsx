@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Search, Filter, MoreHorizontal } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
+export const dynamic = 'force-dynamic'
+
 // Type definition for Profile
 type Profile = {
   id: string

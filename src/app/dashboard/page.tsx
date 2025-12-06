@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser, isUserAdmin } from '@/lib/supabase/server'
 import { DashboardClient } from './dashboard-client'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Dashboard',
   description: 'Admin dashboard overview',

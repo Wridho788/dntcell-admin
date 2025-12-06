@@ -4,6 +4,8 @@ import { getCurrentUser, isUserAdmin } from '@/lib/supabase/server'
 import { ProductForm } from '@/components/products/product-form'
 import { AdminLayout } from '@/components/layout'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Create Product',
   description: 'Create a new product in your catalog',

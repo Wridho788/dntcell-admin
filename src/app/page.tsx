@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link'
 import { ArrowRight, Shield, Users, BarChart3 } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function Home() {
   // Check if user is authenticated
   const user = await getCurrentUser()
