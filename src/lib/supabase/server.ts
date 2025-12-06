@@ -159,7 +159,7 @@ export const isUserAdmin = async (userId: string): Promise<boolean> => {
     // If no profile exists, create one with appropriate role
     if (!data) {
       const isAdmin = await shouldBeAdmin(userId);
-      const defaultRole = isAdmin ? 'admin' : 'user';
+      const defaultRole = isAdmin ? 'super_admin' : 'user';
       
       console.log(`No profile found for user ${userId}, creating profile with role: ${defaultRole}`);
       const { data: newProfile, error: insertError } = await supabase
@@ -173,10 +173,10 @@ export const isUserAdmin = async (userId: string): Promise<boolean> => {
         return false;
       }
       
-      return (newProfile as any).role === 'admin';
+      return (newProfile as any).role === 'super_admin';
     }
     
-    return (data as any).role === 'admin';
+    return (data as any).role === 'super_admin';
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
@@ -201,7 +201,7 @@ export const getUserProfile = async (userId: string) => {
     // If no profile exists, create one with appropriate role
     if (!data) {
       const isAdmin = await shouldBeAdmin(userId);
-      const defaultRole = isAdmin ? 'admin' : 'user';
+      const defaultRole = isAdmin ? 'super_admin' : 'user';
       
       console.log(`No profile found for user ${userId}, creating profile with role: ${defaultRole}`);
       const { data: newProfile, error: insertError } = await supabase
