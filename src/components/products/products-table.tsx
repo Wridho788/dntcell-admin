@@ -44,6 +44,7 @@ import {
   ChevronRight,
   ArrowUpDown,
   Plus,
+  Package,
 } from 'lucide-react'
 import { productService } from '@/lib/services'
 import { toast } from 'sonner'
@@ -472,14 +473,18 @@ export function ProductsTable({
       </Table>
 
       {/* Empty State */}
-      {products.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">No products found</div>
+      {products.length === 0 && !isLoading && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No products found</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+            Get started by creating your first product. Products will appear here once added.
+          </p>
           <Button
-            className="mt-4"
             onClick={() => router.push('/products/new')}
+            size="lg"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-5 w-5" />
             Create your first product
           </Button>
         </div>

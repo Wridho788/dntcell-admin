@@ -25,8 +25,8 @@ export function NegotiationsTable({ negotiations, onUpdate }: NegotiationsTableP
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">Pending</Badge>
-      case 'accepted':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">Accepted</Badge>
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">Approved</Badge>
       case 'rejected':
         return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">Rejected</Badge>
       case 'countered':

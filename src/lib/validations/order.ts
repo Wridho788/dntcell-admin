@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Payment method enum
-export const paymentMethods = ['manual_transfer', 'cod'] as const
+export const paymentMethods = ['cod', 'transfer', 'ewallet'] as const
 export type PaymentMethod = typeof paymentMethods[number]
 
 // Payment status enum
@@ -9,7 +9,7 @@ export const paymentStatuses = ['pending', 'paid', 'failed'] as const
 export type PaymentStatus = typeof paymentStatuses[number]
 
 // Order status enum
-export const orderStatuses = ['pending', 'processing', 'completed', 'cancelled'] as const
+export const orderStatuses = ['pending', 'processing', 'completed', 'canceled'] as const
 export type OrderStatus = typeof orderStatuses[number]
 
 // Base order schema
@@ -35,11 +35,12 @@ export type Order = z.infer<typeof orderSchema>
 export const createOrderSchema = z.object({
   product_id: z.string().uuid({ message: 'Product ID is required' }),
   buyer_id: z.string().uuid({ message: 'Buyer ID is required' }),
-  negotiation_id: z.string().uuid().optional(),
+  negotiation_id: z.string().uuid().optional().nullable(),
   final_price: z.number().int().positive({ message: 'Final price must be greater than 0' }),
-  payment_method: z.enum(paymentMethods).default('manual_transfer'),
+  payment_method: z.enum(paymentMethods).default('cod'),
   payment_status: z.enum(paymentStatuses).default('pending'),
   order_status: z.enum(orderStatuses).default('pending'),
+  shipping_address: z.string().min(10, { message: 'Shipping address must be at least 10 characters' }),
   admin_note: z.string().optional(),
 })
 

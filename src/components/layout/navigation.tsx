@@ -10,7 +10,8 @@ import {
   Settings,
   Package,
   LogOut,
-  ShoppingCart
+  ShoppingCart,
+  MessageSquare
 } from 'lucide-react'
 
 const navigation = [
@@ -28,6 +29,11 @@ const navigation = [
     name: 'Products',
     href: '/products',
     icon: Package,
+  },
+  {
+    name: 'Negotiations',
+    href: '/negotiations',
+    icon: MessageSquare,
   },
   {
     name: 'Orders',
@@ -55,13 +61,13 @@ export function Navigation() {
   }
 
   return (
-    <nav className="w-64 bg-card border-r border-border">
-      <div className="p-6">
-        <div className="text-lg font-semibold text-foreground mb-6">
+    <nav className="w-full md:w-64 bg-card border-r border-border">
+      <div className="p-4 md:p-6">
+        <div className="text-lg font-semibold text-foreground mb-4 md:mb-6">
           DNTCELL Admin
         </div>
         
-        <ul className="space-y-2">
+        <ul className="space-y-1 md:space-y-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href
             const Icon = item.icon

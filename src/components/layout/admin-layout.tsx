@@ -16,15 +16,13 @@ export function AdminLayout({ children, requireAuth = true }: AdminLayoutProps) 
       {/* Header */}
       <Header />
       
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         {/* Sidebar Navigation */}
         <Navigation />
         
         {/* Main Content */}
-        <main className="flex-1 overflow-auto">
-          <div className="container mx-auto p-6">
-            {children}
-          </div>
+        <main className="flex-1 overflow-auto w-full">
+          {children}
         </main>
       </div>
     </div>

@@ -2,13 +2,8 @@
 
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { searchOrders } from "@/lib/actions"
-import {
-  type OrderWithDetails,
-  type OrderStatus,
-  type PaymentStatus,
-  type PaymentMethod,
-} from "@/lib/validations/order"
+import { searchNegotiations } from "@/lib/actions"
+import { type NegotiationStatus } from "@/lib/validations/negotiation"
 import {
   Card,
   CardContent,
@@ -34,59 +29,36 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { LoadingCard } from "@/components/ui/loading"
+import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
-import { Eye, Package, DollarSign } from "lucide-react"
+import { Eye, MessageSquare, TrendingUp, CheckCircle, XCircle } from "lucide-react"
 
-const orderStatusColors: Record<OrderStatus, string> = {
+const negotiationStatusColors: Record<NegotiationStatus, string> = {
   pending: "bg-yellow-500",
-  processing: "bg-blue-500",
-  completed: "bg-green-500",
-  canceled: "bg-red-500",
+  approved: "bg-green-500",
+  rejected: "bg-red-500",
+  countered: "bg-blue-500",
 }
 
-const paymentStatusColors: Record<PaymentStatus, string> = {
-  pending: "bg-yellow-500",
-  paid: "bg-green-500",
-  failed: "bg-red-500",
-}
-
-export function OrdersClient() {
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<
-    PaymentStatus | "all"
-  >("all")
-  const [orderStatusFilter, setOrderStatusFilter] = useState<
-    OrderStatus | "all"
-  >("all")
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<
-    PaymentMethod | "all"
-  >("all")
+export function NegotiationsClient() {
+  const [statusFilter, setStatusFilter] = useState<NegotiationStatus | "all">("all")
+  const [timeFilter, setTimeFilter] = useState<"today" | "week" | "all">("all")
   const [page, setPage] = useState(1)
   const limit = 10
 
   const { data, isLoading, error } = useQuery({
-    queryKey: [
-      "orders",
-      {
-        page,
-        limit,
-        paymentStatus: paymentStatusFilter !== "all" ? paymentStatusFilter : undefined,
-        orderStatus: orderStatusFilter !== "all" ? orderStatusFilter : undefined,
-        paymentMethod: paymentMethodFilter !== "all" ? paymentMethodFilter : undefined,
-      },
-    ],
+    queryKey: ["negotiations-list", { page, limit, status: statusFilter }],
     queryFn: async () => {
-      const result = await searchOrders({
+      const result = await searchNegotiations({
         page,
         limit,
-        payment_status: paymentStatusFilter !== "all" ? paymentStatusFilter : undefined,
-        order_status: orderStatusFilter !== "all" ? orderStatusFilter : undefined,
-        payment_method: paymentMethodFilter !== "all" ? paymentMethodFilter : undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
         sort_by: "created_at",
         sort_order: "desc",
       })
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || "Failed to fetch orders")
+        throw new Error(result.error || "Failed to fetch negotiations")
       }
 
       return result.data
@@ -117,19 +89,22 @@ export function OrdersClient() {
   // Calculate stats
   const stats = {
     total: data?.total || 0,
-    pending: data?.orders.filter((o) => o.order_status === "pending").length || 0,
-    processing: data?.orders.filter((o) => o.order_status === "processing").length || 0,
-    completed: data?.orders.filter((o) => o.order_status === "completed").length || 0,
-    unpaidAmount:
-      data?.orders
-        .filter((o) => o.payment_status === "pending")
-        .reduce((sum, o) => sum + o.final_price, 0) || 0,
+    pending: data?.negotiations.filter((n) => n.status === "pending").length || 0,
+    approved: data?.negotiations.filter((n) => n.status === "approved").length || 0,
+    rejected: data?.negotiations.filter((n) => n.status === "rejected").length || 0,
   }
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <LoadingCard />
+        <Skeleton className="h-24 w-full" />
+        <div className="grid gap-4 md:grid-cols-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+        <Skeleton className="h-96 w-full" />
       </div>
     )
   }
@@ -139,7 +114,7 @@ export function OrdersClient() {
       <Card>
         <CardContent className="pt-6">
           <p className="text-center text-red-500">
-            Error loading orders: {error.message}
+            Error loading negotiations: {error.message}
           </p>
         </CardContent>
       </Card>
@@ -147,12 +122,12 @@ export function OrdersClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-container">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Order Management</h1>
-        <p className="text-muted-foreground">
-          Manage orders and track transactions
+      <div className="page-header">
+        <h1 className="page-title">Negotiations</h1>
+        <p className="page-description">
+          Manage price negotiations with customers
         </p>
       </div>
 
@@ -160,8 +135,8 @@ export function OrdersClient() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -170,6 +145,7 @@ export function OrdersClient() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <TrendingUp className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
@@ -179,22 +155,23 @@ export function OrdersClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Processing</CardTitle>
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.processing}
+            <div className="text-2xl font-bold text-green-600">
+              {stats.approved}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unpaid Amount</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+            <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {formatPrice(stats.unpaidAmount)}
+              {stats.rejected}
             </div>
           </CardContent>
         </Card>
@@ -204,18 +181,16 @@ export function OrdersClient() {
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter orders by status and payment method</CardDescription>
+          <CardDescription>Filter negotiations by status and time</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">
-                Order Status
-              </label>
+              <label className="text-sm font-medium mb-2 block">Status</label>
               <Select
-                value={orderStatusFilter}
+                value={statusFilter}
                 onValueChange={(value) => {
-                  setOrderStatusFilter(value as OrderStatus | "all")
+                  setStatusFilter(value as NegotiationStatus | "all")
                   setPage(1)
                 }}
               >
@@ -225,55 +200,29 @@ export function OrdersClient() {
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="countered">Countered</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">
-                Payment Status
-              </label>
+              <label className="text-sm font-medium mb-2 block">Time Range</label>
               <Select
-                value={paymentStatusFilter}
+                value={timeFilter}
                 onValueChange={(value) => {
-                  setPaymentStatusFilter(value as PaymentStatus | "all")
+                  setTimeFilter(value as "today" | "week" | "all")
                   setPage(1)
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All payments" />
+                  <SelectValue placeholder="All time" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Payments</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">
-                Payment Method
-              </label>
-              <Select
-                value={paymentMethodFilter}
-                onValueChange={(value) => {
-                  setPaymentMethodFilter(value as PaymentMethod | "all")
-                  setPage(1)
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All methods" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                  <SelectItem value="cod">Cash on Delivery</SelectItem>
-                  <SelectItem value="ewallet">E-Wallet</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -281,18 +230,18 @@ export function OrdersClient() {
         </CardContent>
       </Card>
 
-      {/* Orders Table */}
+      {/* Negotiations Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Orders ({data?.total || 0})</CardTitle>
+          <CardTitle>Negotiations ({data?.total || 0})</CardTitle>
         </CardHeader>
         <CardContent>
-          {data?.orders.length === 0 ? (
+          {data?.negotiations.length === 0 ? (
             <div className="text-center py-12">
-              <Package className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No orders found</h3>
+              <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">No negotiations found</h3>
               <p className="text-muted-foreground mt-2">
-                No orders match the current filters.
+                No negotiations match the current filters.
               </p>
             </div>
           ) : (
@@ -301,62 +250,71 @@ export function OrdersClient() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order ID</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Product</TableHead>
-                      <TableHead>Buyer</TableHead>
+                      <TableHead>Offer Price</TableHead>
                       <TableHead>Final Price</TableHead>
-                      <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Used</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data?.orders.map((order: OrderWithDetails) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-mono text-sm">
-                          {order.id.slice(0, 8)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{order.product?.name}</div>
-                        </TableCell>
+                    {data?.negotiations.map((negotiation) => (
+                      <TableRow key={negotiation.id}>
                         <TableCell>
                           <div className="space-y-1">
                             <div className="font-medium">
-                              {order.buyer?.full_name || "Unknown"}
+                              {negotiation.buyer?.full_name || "Unknown"}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {order.buyer?.email}
+                              {negotiation.buyer?.email}
                             </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {negotiation.product?.name || "Unknown Product"}
                           </div>
                         </TableCell>
                         <TableCell className="font-semibold">
-                          {formatPrice(order.final_price)}
+                          {formatPrice(negotiation.offer_price)}
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            <Badge
-                              className={paymentStatusColors[order.payment_status]}
-                            >
-                              {order.payment_status}
-                            </Badge>
-                            <div className="text-xs text-muted-foreground">
-                              {order.payment_method.replace("_", " ")}
-                            </div>
-                          </div>
+                          {negotiation.final_price ? (
+                            <span className="font-semibold text-green-600">
+                              {formatPrice(negotiation.final_price)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge
-                            className={orderStatusColors[order.order_status]}
+                            className={negotiationStatusColors[negotiation.status]}
                           >
-                            {order.order_status}
+                            {negotiation.status}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          {negotiation.status === 'approved' && (
+                            negotiation.used ? (
+                              <Badge variant="outline" className="border-red-500 text-red-500">
+                                🔒 Used
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-green-500 text-green-500">
+                                ✓ Available
+                              </Badge>
+                            )
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm">
-                          {formatDate(order.created_at)}
+                          {formatDate(negotiation.created_at)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/orders/${order.id}`}>
+                          <Link href={`/negotiations/${negotiation.id}`}>
                             <Button variant="ghost" size="sm">
                               <Eye className="h-4 w-4" />
                             </Button>

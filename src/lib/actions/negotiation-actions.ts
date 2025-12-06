@@ -315,10 +315,22 @@ export async function updateNegotiationStatus(
     // Update negotiation
     const updateData: any = {
       status: validationResult.data.status,
-      seller_id: adminId,
+      admin_id: adminId, // Use admin_id instead of seller_id
+      seller_id: adminId, // Keep for backward compatibility
       updated_at: new Date().toISOString(),
     }
 
+    // Add final_price if provided (when approving)
+    if (validationResult.data.final_price) {
+      updateData.final_price = validationResult.data.final_price
+    }
+
+    // Add note if provided
+    if (validationResult.data.note) {
+      updateData.note = validationResult.data.note
+    }
+
+    // Keep admin_note for backward compatibility
     if (validationResult.data.admin_note) {
       updateData.admin_note = validationResult.data.admin_note
     }
@@ -338,8 +350,8 @@ export async function updateNegotiationStatus(
       }
     }
 
-    // If accepted, update product status to sold and create an order
-    if (validationResult.data.status === "accepted") {
+    // If approved, update product status to sold and create an order
+    if (validationResult.data.status === "approved") {
       const { error: productError } = await supabase
         .from("products")
         .update({
@@ -352,8 +364,10 @@ export async function updateNegotiationStatus(
         console.error("Error updating product status:", productError)
       }
 
-      // Auto-create order for accepted negotiation
+      // Auto-create order for approved negotiation
       try {
+        const finalPrice = validationResult.data.final_price || negotiation.offer_price
+        
         const { error: orderError } = await supabase
           .from("orders")
           .insert({
@@ -361,11 +375,11 @@ export async function updateNegotiationStatus(
             buyer_id: negotiation.buyer_id,
             seller_id: adminId,
             negotiation_id: negotiation.id,
-            final_price: negotiation.offer_price,
+            final_price: finalPrice,
             payment_method: "manual_transfer", // Default to manual transfer
             payment_status: "pending",
             order_status: "pending",
-            admin_note: validationResult.data.admin_note || "Order created from accepted negotiation",
+            admin_note: validationResult.data.note || validationResult.data.admin_note || "Order created from approved negotiation",
           })
 
         if (orderError) {
@@ -382,6 +396,7 @@ export async function updateNegotiationStatus(
 
     revalidatePath("/products")
     revalidatePath(`/products/${negotiation.product_id}`)
+    revalidatePath("/negotiations")
 
     return {
       success: true,

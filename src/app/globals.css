@@ -120,3 +120,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom utility classes for consistent spacing */
+@layer utilities {
+  .page-container {
+    @apply container mx-auto px-4 py-6 sm:px-6 lg:px-8;
+  }
+  
+  .page-header {
+    @apply mb-6 space-y-2;
+  }
+  
+  .page-title {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  
+  .page-description {
+    @apply text-muted-foreground;
+  }
+  
+  .card-spacing {
+    @apply space-y-6;
+  }
+  
+  .form-spacing {
+    @apply space-y-4;
+  }
+  
+  .section-spacing {
+    @apply mt-8 space-y-6;
+  }
+}

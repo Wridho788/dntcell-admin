@@ -20,6 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { LoadingCard } from "@/components/ui/loading"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -30,7 +41,7 @@ const orderStatusColors: Record<OrderStatus, string> = {
   pending: "bg-yellow-500",
   processing: "bg-blue-500",
   completed: "bg-green-500",
-  cancelled: "bg-red-500",
+  canceled: "bg-red-500",
 }
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
@@ -47,6 +58,8 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const queryClient = useQueryClient()
   const [selectedOrderStatus, setSelectedOrderStatus] = useState<OrderStatus | null>(null)
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<PaymentStatus | null>(null)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [cancelNote, setCancelNote] = useState("")
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ["order", orderId],
@@ -63,8 +76,12 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   })
 
   const updateOrderStatusMutation = useMutation({
-    mutationFn: async (status: OrderStatus) => {
-      const result = await updateOrderStatus({ id: orderId, order_status: status })
+    mutationFn: async ({ status, note }: { status: OrderStatus; note?: string }) => {
+      const result = await updateOrderStatus({ 
+        id: orderId, 
+        order_status: status,
+        admin_note: note 
+      })
       if (!result.success) {
         throw new Error(result.error || "Failed to update order status")
       }
@@ -75,11 +92,31 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
       queryClient.invalidateQueries({ queryKey: ["orders"] })
       toast.success("Order status updated successfully")
       setSelectedOrderStatus(null)
+      setShowCancelDialog(false)
+      setCancelNote("")
     },
     onError: (error: Error) => {
       toast.error(`Failed to update order status: ${error.message}`)
     },
   })
+
+  const handleStatusChange = (status: OrderStatus) => {
+    if (status === 'canceled') {
+      setSelectedOrderStatus(status)
+      setShowCancelDialog(true)
+    } else {
+      updateOrderStatusMutation.mutate({ status })
+    }
+  }
+
+  const handleConfirmCancel = () => {
+    if (selectedOrderStatus === 'canceled') {
+      updateOrderStatusMutation.mutate({ 
+        status: 'canceled', 
+        note: cancelNote || "Order canceled by admin" 
+      })
+    }
+  }
 
   const updatePaymentStatusMutation = useMutation({
     mutationFn: async (status: PaymentStatus) => {
@@ -374,13 +411,13 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="processing">Processing</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="canceled">Canceled</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
                     onClick={() =>
                       selectedOrderStatus &&
-                      updateOrderStatusMutation.mutate(selectedOrderStatus)
+                      handleStatusChange(selectedOrderStatus)
                     }
                     disabled={
                       !selectedOrderStatus ||
@@ -497,6 +534,46 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this order? This action cannot be undone.
+              The customer will be notified via push notification.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              Cancellation Reason (Optional)
+            </label>
+            <Textarea
+              placeholder="Enter the reason for canceling this order..."
+              value={cancelNote}
+              onChange={(e) => setCancelNote(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowCancelDialog(false)
+              setSelectedOrderStatus(null)
+              setCancelNote("")
+            }}>
+              Keep Order
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmCancel}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={updateOrderStatusMutation.isPending}
+            >
+              {updateOrderStatusMutation.isPending ? "Canceling..." : "Cancel Order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

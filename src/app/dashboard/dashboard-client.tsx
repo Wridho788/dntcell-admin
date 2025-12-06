@@ -34,16 +34,17 @@ const stats = [
 export function DashboardClient() {
   return (
     <AdminLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+      <div className="page-container">
+        {/* Header */}
+        <div className="page-header">
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-description">
             Welcome to your admin dashboard. Here's what's happening today.
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
@@ -66,16 +67,17 @@ export function DashboardClient() {
         </div>
 
         {/* Recent Activity */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>
-                Latest system activities and user actions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+        <div className="section-spacing">
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>
+                  Latest system activities and user actions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
                 <div className="flex items-center space-x-4">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
                   <div className="flex-1 space-y-1">
@@ -129,6 +131,7 @@ export function DashboardClient() {
               </div>
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
     </AdminLayout>

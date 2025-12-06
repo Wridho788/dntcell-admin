@@ -43,20 +43,21 @@ export function NegotiationActions({ negotiation, onUpdate }: NegotiationActions
     mutationFn: () =>
       updateNegotiationStatus({
         id: negotiation.id,
-        status: 'accepted',
+        status: 'approved',
+        final_price: negotiation.offer_price, // Use offer price as final price
       }),
     onSuccess: (result) => {
       if (result.success) {
-        toast.success('Offer accepted! Product status updated to sold.')
+        toast.success('Offer approved! Product status updated to sold.')
         queryClient.invalidateQueries({ queryKey: ['negotiations'] })
         queryClient.invalidateQueries({ queryKey: ['products'] })
         onUpdate?.()
       } else {
-        toast.error(result.error || 'Failed to accept offer')
+        toast.error(result.error || 'Failed to approve offer')
       }
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to accept offer')
+      toast.error(error.message || 'Failed to approve offer')
     },
   })
 
@@ -66,7 +67,7 @@ export function NegotiationActions({ negotiation, onUpdate }: NegotiationActions
       updateNegotiationStatus({
         id: negotiation.id,
         status: 'rejected',
-        admin_note: rejectNote || undefined,
+        note: rejectNote || undefined,
       }),
     onSuccess: (result) => {
       if (result.success) {
@@ -151,8 +152,8 @@ export function NegotiationActions({ negotiation, onUpdate }: NegotiationActions
     }
   }
 
-  // Don't show actions if already accepted or rejected
-  if (negotiation.status === 'accepted' || negotiation.status === 'rejected') {
+  // Don't show actions if already approved or rejected
+  if (negotiation.status === 'approved' || negotiation.status === 'rejected') {
     return null
   }
 

@@ -89,6 +89,60 @@ export async function createOrder(
       }
     }
 
+    // If order is from negotiation, validate and mark as used
+    if (validationResult.data.negotiation_id) {
+      const { data: negotiation, error: negError } = await supabase
+        .from("negotiations")
+        .select("id, status, used, final_price")
+        .eq("id", validationResult.data.negotiation_id)
+        .single()
+
+      if (negError || !negotiation) {
+        return {
+          success: false,
+          error: "Negotiation not found",
+        }
+      }
+
+      const neg = negotiation as any
+
+      if (neg.status !== 'approved') {
+        return {
+          success: false,
+          error: "Negotiation must be approved before creating order",
+        }
+      }
+
+      if (neg.used) {
+        return {
+          success: false,
+          error: "Negotiation has already been used for another order",
+        }
+      }
+
+      // Ensure price matches negotiation final_price
+      if (validationResult.data.final_price !== neg.final_price) {
+        return {
+          success: false,
+          error: "Order price must match negotiation final price",
+        }
+      }
+
+      // Mark negotiation as used
+      const { error: updateError } = await supabase
+        .from("negotiations")
+        .update({ used: true, updated_at: new Date().toISOString() })
+        .eq("id", validationResult.data.negotiation_id)
+
+      if (updateError) {
+        console.error("Failed to mark negotiation as used:", updateError)
+        return {
+          success: false,
+          error: "Failed to update negotiation status",
+        }
+      }
+    }
+
     // Create order
     const { data: order, error } = await supabase
       .from("orders")
@@ -101,6 +155,7 @@ export async function createOrder(
         payment_method: validationResult.data.payment_method,
         payment_status: validationResult.data.payment_status,
         order_status: validationResult.data.order_status,
+        shipping_address: validationResult.data.shipping_address,
         admin_note: validationResult.data.admin_note || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-// Negotiation status enum
-export const negotiationStatuses = ['pending', 'accepted', 'rejected', 'countered'] as const
+// Negotiation status enum - updated to use 'approved' instead of 'accepted'
+export const negotiationStatuses = ['pending', 'approved', 'rejected', 'countered'] as const
 export type NegotiationStatus = typeof negotiationStatuses[number]
 
 // Base negotiation schema
@@ -9,11 +9,15 @@ export const negotiationSchema = z.object({
   id: z.string().uuid(),
   product_id: z.string().uuid(),
   buyer_id: z.string().uuid(),
-  seller_id: z.string().uuid().nullable(),
+  seller_id: z.string().uuid().nullable(), // Kept for backward compatibility
+  admin_id: z.string().uuid().nullable(), // Admin who approved/rejected
   offer_price: z.number().int().positive(),
+  final_price: z.number().int().positive().nullable(), // Final price when approved
   status: z.enum(negotiationStatuses),
   counter_price: z.number().int().positive().nullable(),
-  admin_note: z.string().nullable(),
+  admin_note: z.string().nullable(), // Kept for backward compatibility
+  note: z.string().nullable(), // New field for rejection notes
+  used: z.boolean().default(false), // Whether negotiation has been used in an order
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 })
@@ -30,11 +34,13 @@ export const createNegotiationSchema = z.object({
 
 export type CreateNegotiationInput = z.infer<typeof createNegotiationSchema>
 
-// Update negotiation status input
+// Update negotiation status input (approve/reject)
 export const updateNegotiationStatusSchema = z.object({
   id: z.string().uuid({ message: 'Negotiation ID is required' }),
   status: z.enum(negotiationStatuses, { message: 'Invalid status' }),
-  admin_note: z.string().optional(),
+  final_price: z.number().int().positive().optional(), // Required when approving
+  note: z.string().optional(), // Rejection note or admin comments
+  admin_note: z.string().optional(), // Kept for backward compatibility
 })
 
 export type UpdateNegotiationStatusInput = z.infer<typeof updateNegotiationStatusSchema>

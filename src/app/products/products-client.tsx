@@ -74,17 +74,18 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="page-container">
         {/* Header */}
-        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-            <p className="text-muted-foreground">
-              Manage your product catalog and inventory
-            </p>
-          </div>
-          
-          <div className="flex space-x-2">
+        <div className="page-header">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="page-title">Products</h1>
+              <p className="page-description">
+                Manage your product catalog and inventory
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={handleRefresh}
@@ -97,6 +98,7 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
               <Plus className="mr-2 h-4 w-4" />
               Add Product
             </Button>
+            </div>
           </div>
         </div>
 
