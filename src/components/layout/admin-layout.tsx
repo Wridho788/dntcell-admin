@@ -4,6 +4,7 @@ import { ReactNode } from 'react'
 import { AuthWrapper } from '@/components/auth'
 import { Navigation } from './navigation'
 import { Header } from './header'
+import { useOneSignalSync } from '@/hooks/use-onesignal-sync'
 
 interface AdminLayoutProps {
   children: ReactNode
@@ -11,6 +12,9 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children, requireAuth = true }: AdminLayoutProps) {
+  // Sync OneSignal player ID when user is authenticated
+  useOneSignalSync()
+  
   const content = (
     <div className="min-h-screen bg-background">
       {/* Header */}

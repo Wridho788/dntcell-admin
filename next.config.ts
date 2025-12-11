@@ -28,6 +28,25 @@ const nextConfig: NextConfig = {
     ],
   },
   
+  // Headers for OneSignal service worker
+  async headers() {
+    return [
+      {
+        source: '/OneSignalSDKWorker.js',
+        headers: [
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+    ]
+  },
+  
   // Development settings (minimal configuration for Next.js 16)
 };
 

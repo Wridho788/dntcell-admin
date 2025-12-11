@@ -2,6 +2,7 @@
 
 import { QueryProvider } from './query-provider'
 import { ThemeProvider } from './theme-provider'
+import { OneSignalProvider } from './onesignal-provider'
 import { Toaster } from 'sonner'
 
 interface ProvidersProps {
@@ -14,6 +15,7 @@ export function Providers({ children }: ProvidersProps) {
       defaultTheme="system"
     >
       <QueryProvider>
+        <OneSignalProvider />
         {children}
         <Toaster
           position="top-right"
@@ -29,3 +31,4 @@ export function Providers({ children }: ProvidersProps) {
 
 export * from './query-provider'
 export * from './theme-provider'
+export * from './onesignal-provider'
