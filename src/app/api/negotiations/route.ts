@@ -5,6 +5,7 @@ import { requireAuth } from '@/api/_core/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_core/response'
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
+import { sendBulkAdminNotification } from '@/lib/onesignal'
 
 // GET /api/negotiations - List negotiations
 export async function GET(request: NextRequest) {
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(insertError.message)
     }
 
-    // TODO: Create notification for admin
+    // Create notification for admin
     await supabaseAdmin
       .from('notifications')
       .insert({
@@ -135,6 +136,21 @@ export async function POST(request: NextRequest) {
         message: `New offer for ${product.name}: ${validation.data.offer_price}`,
         data: { negotiation_id: negotiation.id },
       })
+
+    // Send push notification to all admins
+    sendBulkAdminNotification(
+      'New Price Negotiation',
+      `New offer for ${product.name}: Rp ${validation.data.offer_price.toLocaleString()}`,
+      { 
+        negotiation_id: negotiation.id,
+        product_id: product.id,
+        product_name: product.name,
+        offer_price: validation.data.offer_price,
+      },
+      `${process.env.NEXT_PUBLIC_APP_URL}/negotiations`
+    ).catch((error) => {
+      console.error('[Negotiation] Failed to send push notification:', error)
+    })
 
     return successResponse(negotiation, 'Negotiation created successfully', 201)
   } catch (error) {

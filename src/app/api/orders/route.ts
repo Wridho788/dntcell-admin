@@ -6,6 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_cor
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { sendBulkAdminNotification } from '@/lib/onesignal'
 
 // GET /api/orders - List orders
 export async function GET(request: NextRequest) {
@@ -181,7 +182,21 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // TODO: Trigger OneSignal notification
+    // Send push notification to all admins
+    sendBulkAdminNotification(
+      'New Order Received',
+      `New order for ${product.name} - Rp ${finalPrice.toLocaleString()}`,
+      {
+        order_id: order.id,
+        product_id,
+        product_name: product.name,
+        price: finalPrice,
+        payment_method: orderData.payment_method,
+      },
+      `${process.env.NEXT_PUBLIC_APP_URL}/orders`
+    ).catch((error) => {
+      console.error('[Order] Failed to send push notification:', error)
+    })
 
     return successResponse(order, 'Order created successfully', 201)
   } catch (error) {

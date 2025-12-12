@@ -6,6 +6,7 @@ import { successResponse, errorResponse, notFoundResponse } from '@/api/_core/re
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { sendAdminNotification } from '@/lib/onesignal'
 
 // PUT /api/orders/[id]/status - Update order status
 const updateStatusSchema = z.object({
@@ -93,7 +94,22 @@ export async function PUT(
       },
     })
 
-    // TODO: Trigger OneSignal notification
+    // Send push notification to buyer
+    if (order.buyer.onesignal_player_id) {
+      sendAdminNotification(
+        order.buyer_id,
+        'Order Status Updated',
+        statusMessages[validation.data.status] || 'Your order status has been updated',
+        {
+          order_id: params.id,
+          status: validation.data.status,
+          product_name: order.product.name,
+        },
+        `${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.id}`
+      ).catch((error) => {
+        console.error('[Order Status] Failed to send push notification:', error)
+      })
+    }
 
     return successResponse(updated, 'Order status updated successfully')
   } catch (error) {
