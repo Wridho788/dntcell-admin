@@ -46,7 +46,7 @@ export function NegotiationsClient() {
   const [page, setPage] = useState(1)
   const limit = 10
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["negotiations-list", { page, limit, status: statusFilter }],
     queryFn: async () => {
       const result = await searchNegotiations({
@@ -64,6 +64,7 @@ export function NegotiationsClient() {
       return result.data
     },
     staleTime: 30000,
+    retry: 1,
   })
 
   const formatPrice = (price: number) => {
@@ -113,9 +114,14 @@ export function NegotiationsClient() {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-red-500">
-            Error loading negotiations: {error.message}
-          </p>
+          <div className="text-center space-y-4">
+            <p className="text-red-500">
+              Error loading negotiations: {error.message}
+            </p>
+            <Button onClick={() => refetch()} variant="outline">
+              Coba Lagi
+            </Button>
+          </div>
         </CardContent>
       </Card>
     )

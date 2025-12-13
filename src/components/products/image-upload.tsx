@@ -145,13 +145,13 @@ export function ImageUpload({
             idx === i ? { ...p, progress: 30, status: 'compressing' as const } : p
           ))
           
-          // Compress image before upload
+          // Compress image before upload with faster settings
           console.log('🔄 Compressing image:', file.name)
           const compressedFile = await compressImage(file, {
-            maxWidth: 1200,
-            maxHeight: 1200,
-            quality: 0.8,
-            maxSizeKB: 500
+            maxWidth: 1024,
+            maxHeight: 1024,
+            quality: 0.75,
+            maxSizeKB: 300
           })
           console.log('✅ Compressed:', formatFileSize(file.size), '→', formatFileSize(compressedFile.size))
 
@@ -170,15 +170,14 @@ export function ImageUpload({
           const filePath = `temp/${fileName}`
 
           console.log('☁️ Uploading to Supabase:', filePath, `(${formatFileSize(compressedFile.size)})`)
-          console.log('⏱️ Upload timeout: 30 seconds, with 2 retries')
           
-          // Use upload with timeout and retry
+          // Use upload with reduced timeout for faster feedback
           const { error: uploadError } = await uploadWithTimeout(
             supabase,
             filePath,
             compressedFile,
-            30000, // 30 seconds
-            2 // 2 retries
+            15000, // 15 seconds timeout
+            1 // 1 retry only for faster feedback
           )
 
           if (uploadError) {
@@ -434,8 +433,7 @@ export function ImageUpload({
             </div>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {images.map((image, index) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{images.map((image, index) => (
               <div
                 key={`${image.url}-${index}`}
                 draggable
@@ -478,25 +476,26 @@ export function ImageUpload({
                     )}
                     
                     {/* Actions Overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all">
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all">
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                         <Button
                           size="icon"
                           variant="destructive"
-                          className="h-8 w-8 shadow-lg"
+                          className="h-10 w-10 shadow-lg"
                           onClick={(e) => {
                             e.stopPropagation()
                             removeImage(index)
                           }}
+                          title="Hapus gambar"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-5 w-5" />
                         </Button>
                       </div>
                       
                       {/* Move Handle */}
                       <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-black/70 rounded-md p-1.5 shadow-lg">
-                          <Move className="h-4 w-4 text-white" />
+                        <div className="bg-black/70 rounded-md p-2 shadow-lg">
+                          <Move className="h-5 w-5 text-white" />
                         </div>
                       </div>
                     </div>
@@ -513,8 +512,8 @@ export function ImageUpload({
               >
                 <Card className="h-full border-2 border-dashed hover:border-primary/50 transition-colors">
                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                    <Upload className="h-8 w-8 mb-2" />
-                    <p className="text-xs font-medium">Tambah</p>
+                    <Upload className="h-10 w-10 mb-3" />
+                    <p className="text-sm font-medium">Tambah Gambar</p>
                   </div>
                 </Card>
               </div>

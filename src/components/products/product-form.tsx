@@ -410,6 +410,28 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Product Images - Moved to top of sidebar for better UX */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Foto Produk</CardTitle>
+                <CardDescription>
+                  Upload foto produk (maksimal 10 gambar). Gambar pertama akan menjadi foto utama.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ImageUpload
+                  images={uploadedImages}
+                  onImagesChange={setUploadedImages}
+                  maxImages={10}
+                />
+                {uploadedImages.length === 0 && (
+                  <p className="text-sm text-amber-600 mt-2 flex items-center gap-2">
+                    <span>⚠️</span> Minimal 1 gambar produk diperlukan
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Status & Category */}
             <Card>
               <CardHeader>
@@ -442,25 +464,6 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
 
               </CardContent>
             </Card>
-
-            {/* Product Images */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Foto Produk</CardTitle>
-                <CardDescription>
-                  Upload foto produk (maksimal 10 gambar)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ImageUpload
-                  images={uploadedImages}
-                  onImagesChange={setUploadedImages}
-                  maxImages={10}
-                />
-              </CardContent>
-            </Card>
-
-
           </div>
         </div>
       </form>

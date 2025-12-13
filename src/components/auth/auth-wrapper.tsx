@@ -29,11 +29,11 @@ export function AuthWrapper({ children, requireAdmin = true }: AuthWrapperProps)
   }, [user, loading, isAdmin, requireAdmin, router])
 
   if (loading) {
-    return <LoadingScreen text="Checking authentication..." />
+    return <LoadingScreen text="Memuat halaman..." />
   }
 
   if (!user || (requireAdmin && !isAdmin)) {
-    return <LoadingScreen text="Redirecting..." />
+    return null
   }
 
   return <>{children}</>

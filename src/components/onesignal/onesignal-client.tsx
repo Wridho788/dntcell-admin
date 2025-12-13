@@ -48,10 +48,11 @@ export function OneSignalClient({ adminId }: OneSignalClientProps) {
 
     const initializeOneSignal = async () => {
       try {
+        // Get environment variable on client side
         const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID
         
-        if (!appId) {
-          console.error("[OneSignal] Missing NEXT_PUBLIC_ONESIGNAL_APP_ID")
+        if (!appId || appId === 'undefined' || appId === '') {
+          console.warn("[OneSignal] NEXT_PUBLIC_ONESIGNAL_APP_ID not configured, skipping initialization")
           return
         }
 
