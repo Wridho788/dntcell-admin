@@ -66,6 +66,10 @@ A modern, secure admin dashboard built with Next.js 14, TypeScript, Tailwind CSS
    # Application Configuration
    APP_ENV=development
    APP_NAME="DNTCELL Admin Panel"
+   
+   # OneSignal Configuration (Optional)
+   # Leave empty to skip OneSignal initialization
+   NEXT_PUBLIC_ONESIGNAL_APP_ID=your_onesignal_app_id
    ```
 
 4. **Supabase Setup**
@@ -186,6 +190,9 @@ Required environment variables:
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Yes |
 | `NEXTAUTH_SECRET` | NextAuth secret for JWT | Yes |
 | `NEXTAUTH_URL` | Application base URL | Yes |
+| `NEXT_PUBLIC_ONESIGNAL_APP_ID` | OneSignal App ID for push notifications | No |
+
+**Note:** OneSignal is optional. If `NEXT_PUBLIC_ONESIGNAL_APP_ID` is not configured, the application will skip OneSignal initialization and run without push notifications.
 
 ## Deployment
 
