@@ -121,6 +121,12 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
     console.log('📝 Form submit - Raw data:', data)
     console.log('🖼️ Form submit - Uploaded images:', uploadedImages)
     
+    // Validation: Must have at least 1 image
+    if (uploadedImages.length === 0) {
+      toast.error('Minimal 1 gambar produk harus diupload')
+      return
+    }
+    
     // Client-side validation: selling_price must be at least base_price + 100000
     if (data.selling_price && data.base_price) {
       if (data.selling_price < data.base_price + 100000) {
@@ -415,7 +421,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
               <CardHeader>
                 <CardTitle>Foto Produk</CardTitle>
                 <CardDescription>
-                  Upload foto produk (maksimal 10 gambar). Gambar pertama akan menjadi foto utama.
+                  Upload foto produk (maksimal 3 gambar). Gambar pertama akan menjadi foto utama.
                 </CardDescription>
               </CardHeader>
               <CardContent>

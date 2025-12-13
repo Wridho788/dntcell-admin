@@ -38,59 +38,44 @@ export function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Helper function to upload with timeout and retry
+  // Helper function to upload with aggressive timeout - max 5 seconds
   const uploadWithTimeout = async (
     supabase: any,
     filePath: string,
     file: File,
-    timeoutMs = 30000, // 30 seconds timeout
-    retries = 2
+    timeoutMs = 5000 // 5 seconds max
   ): Promise<{ error: any }> => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        abortControllerRef.current = new AbortController()
-        const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), timeoutMs)
+    try {
+      abortControllerRef.current = new AbortController()
+      const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), timeoutMs)
 
-        console.log(`📤 Upload attempt ${attempt + 1}/${retries + 1}:`, filePath)
+      console.log(`📤 Uploading:`, filePath, `(timeout: ${timeoutMs}ms)`)
 
-        const { error } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-            // Add duplex for better streaming support
-            ...(file.size > 100000 ? { duplex: 'half' } : {})
-          })
+      const { error } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        })
 
-        clearTimeout(timeoutId)
-        abortControllerRef.current = null
+      clearTimeout(timeoutId)
+      abortControllerRef.current = null
 
-        if (!error) {
-          console.log(`✅ Upload successful on attempt ${attempt + 1}`)
-          return { error: null }
-        }
+      if (!error) {
+        console.log(`✅ Upload successful`)
+        return { error: null }
+      }
 
-        if (attempt === retries) {
-          return { error }
-        }
-
-        console.log(`⚠️ Upload failed, retrying... (${attempt + 1}/${retries})`, error)
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.error('❌ Upload timeout after', timeoutMs, 'ms')
-          if (attempt === retries) {
-            return { error: new Error('Upload timeout - koneksi terlalu lambat') }
-          }
-          console.log('🔄 Retrying after timeout...')
-          await new Promise(resolve => setTimeout(resolve, 2000))
-        } else {
-          console.error('❌ Upload error:', err)
-          return { error: err }
-        }
+      return { error }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.error('❌ Upload timeout after', timeoutMs, 'ms')
+        return { error: new Error(`Upload timeout (>${timeoutMs/1000}s) - silakan coba lagi atau gunakan gambar lebih kecil`) }
+      } else {
+        console.error('❌ Upload error:', err)
+        return { error: err }
       }
     }
-    return { error: new Error('Upload failed after retries') }
   }
 
   const handleFileSelect = async (files: FileList) => {
@@ -140,44 +125,53 @@ export function ImageUpload({
         }
 
         try {
-          // Update progress: compressing
-          setUploadProgress(prev => prev.map((p, idx) => 
-            idx === i ? { ...p, progress: 30, status: 'compressing' as const } : p
-          ))
+          let finalFile: File
           
-          // Compress image before upload with faster settings
-          console.log('🔄 Compressing image:', file.name)
-          const compressedFile = await compressImage(file, {
-            maxWidth: 1024,
-            maxHeight: 1024,
-            quality: 0.75,
-            maxSizeKB: 300
-          })
-          console.log('✅ Compressed:', formatFileSize(file.size), '→', formatFileSize(compressedFile.size))
-
-          // Update progress: uploading
-          setUploadProgress(prev => prev.map((p, idx) => 
-            idx === i ? { ...p, progress: 50, status: 'uploading' as const } : p
-          ))
+          // Skip compression for files < 100KB - direct upload!
+          if (file.size < 100 * 1024) {
+            console.log('⚡ File < 100KB, skipping compression for instant upload')
+            finalFile = file
+            setUploadProgress(prev => prev.map((p, idx) => 
+              idx === i ? { ...p, progress: 40, status: 'uploading' as const } : p
+            ))
+          } else {
+            // Update progress: compressing
+            setUploadProgress(prev => prev.map((p, idx) => 
+              idx === i ? { ...p, progress: 20, status: 'compressing' as const } : p
+            ))
+            
+            // Compress larger images with aggressive settings
+            console.log('🔄 Compressing image:', file.name)
+            finalFile = await compressImage(file, {
+              maxWidth: 800,
+              maxHeight: 800,
+              quality: 0.7,
+              maxSizeKB: 200
+            })
+            console.log('✅ Compressed:', formatFileSize(file.size), '→', formatFileSize(finalFile.size))
+            
+            setUploadProgress(prev => prev.map((p, idx) => 
+              idx === i ? { ...p, progress: 40, status: 'uploading' as const } : p
+            ))
+          }
 
           // Upload to Supabase using client
           const supabase = createClient()
-          const fileExt = compressedFile.name.split('.').pop()
+          const fileExt = finalFile.name.split('.').pop()
           const timestamp = Date.now()
           const randomStr = Math.random().toString(36).substring(2, 9)
           const fileName = `${timestamp}-${randomStr}.${fileExt}`
           // Use temp folder for images without product ID yet
           const filePath = `temp/${fileName}`
 
-          console.log('☁️ Uploading to Supabase:', filePath, `(${formatFileSize(compressedFile.size)})`)
+          console.log('☁️ Uploading to Supabase:', filePath, `(${formatFileSize(finalFile.size)})`)
           
-          // Use upload with reduced timeout for faster feedback
+          // Use upload with 5 second max timeout
           const { error: uploadError } = await uploadWithTimeout(
             supabase,
             filePath,
-            compressedFile,
-            15000, // 15 seconds timeout
-            1 // 1 retry only for faster feedback
+            finalFile,
+            5000 // 5 seconds max
           )
 
           if (uploadError) {
@@ -194,7 +188,7 @@ export function ImageUpload({
 
           // Calculate upload stats
           const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2)
-          const uploadSpeed = (compressedFile.size / 1024 / parseFloat(uploadDuration)).toFixed(2)
+          const uploadSpeed = (finalFile.size / 1024 / parseFloat(uploadDuration)).toFixed(2)
           console.log(`⚡ Upload stats: ${uploadDuration}s, ${uploadSpeed} KB/s`)
 
           // Update progress: getting URL
@@ -216,7 +210,7 @@ export function ImageUpload({
           
           newImages.push({
             url: publicUrl,
-            file: compressedFile
+            file: finalFile
           })
           
           console.log(`✅ Image ${i + 1}/${files.length} processed successfully`)
@@ -342,7 +336,7 @@ export function ImageUpload({
                 : 'Drop gambar atau klik untuk browse'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              PNG, JPG, WebP hingga 5MB per file
+              PNG, JPG, WebP. File &lt;100KB = upload instant!
             </p>
             <div className="mt-2">
               <Badge variant={images.length >= maxImages ? 'destructive' : 'secondary'}>
@@ -527,8 +521,9 @@ export function ImageUpload({
               <ul className="list-disc list-inside space-y-0.5 ml-1">
                 <li>Drag gambar untuk mengubah urutan</li>
                 <li>Gambar pertama akan menjadi gambar utama</li>
-                <li>Maksimal {maxImages} gambar per produk</li>
-                <li>Gambar otomatis terkompresi untuk performa optimal</li>
+                <li>File &lt;100KB = upload instant (&lt;1 detik)</li>
+                <li>File besar akan dikompres otomatis</li>
+                <li>Timeout maksimal: 5 detik per gambar</li>
               </ul>
             </div>
           </div>
