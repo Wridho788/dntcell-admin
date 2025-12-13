@@ -126,6 +126,14 @@ export function ImageUpload({
 
         try {
           let finalFile: File
+          let uploadTimeout = 5000 // default 5 seconds
+          
+          // Determine timeout based on file size
+          if (file.size < 200 * 1024) {
+            uploadTimeout = 6000 // 6 seconds for files < 200KB
+          } else if (file.size < 500 * 1024) {
+            uploadTimeout = 8000 // 8 seconds for files < 500KB
+          }
           
           // Skip compression for files < 100KB - direct upload!
           if (file.size < 100 * 1024) {
@@ -164,14 +172,14 @@ export function ImageUpload({
           // Use temp folder for images without product ID yet
           const filePath = `temp/${fileName}`
 
-          console.log('☁️ Uploading to Supabase:', filePath, `(${formatFileSize(finalFile.size)})`)
+          console.log('☁️ Uploading to Supabase:', filePath, `(${formatFileSize(finalFile.size)}, timeout: ${uploadTimeout}ms)`)
           
-          // Use upload with 5 second max timeout
+          // Use upload with dynamic timeout based on file size
           const { error: uploadError } = await uploadWithTimeout(
             supabase,
             filePath,
             finalFile,
-            5000 // 5 seconds max
+            uploadTimeout
           )
 
           if (uploadError) {

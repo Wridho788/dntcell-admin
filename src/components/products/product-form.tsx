@@ -170,7 +170,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
             onClick={() => router.back()}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            Kembali
           </Button>
           
           <div className="flex space-x-2">
@@ -180,14 +180,14 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
               onClick={() => router.push('/products')}
             >
               <X className="mr-2 h-4 w-4" />
-              Cancel
+              Batal
             </Button>
             <LoadingButton
               type="submit"
               loading={isLoading}
             >
               <Save className="mr-2 h-4 w-4" />
-              {mode === 'create' ? 'Create Product' : 'Update Product'}
+              {mode === 'create' ? 'Buat Produk' : 'Perbarui Produk'}
             </LoadingButton>
           </div>
         </div>
@@ -198,9 +198,9 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
             {/* Basic Information */}
             <Card>
               <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+                <CardTitle>Informasi Dasar</CardTitle>
                 <CardDescription>
-                  Essential product details and descriptions
+                  Detail produk dan deskripsi penting
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -209,9 +209,9 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Product Name *</FormLabel>
+                      <FormLabel>Nama Produk *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter product name" {...field} />
+                        <Input placeholder="Masukkan nama produk" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -223,7 +223,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                   name="category_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>Kategori</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value || undefined}
@@ -232,14 +232,14 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue 
-                              placeholder={categoriesLoading ? "Loading categories..." : "Select category"} 
+                              placeholder={categoriesLoading ? "Memuat kategori..." : "Pilih kategori"} 
                             />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {categories.length === 0 && !categoriesLoading && (
                             <SelectItem value="" disabled>
-                              No categories available
+                              Tidak ada kategori tersedia
                             </SelectItem>
                           )}
                           {categories.map((category) => (
@@ -250,7 +250,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Choose the most appropriate category
+                        Pilih kategori yang paling sesuai
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -262,10 +262,10 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description *</FormLabel>
+                      <FormLabel>Deskripsi *</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter detailed product description"
+                          placeholder="Masukkan deskripsi produk lengkap"
                           rows={4}
                           {...field}
                         />
@@ -281,19 +281,19 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     name="condition"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Condition *</FormLabel>
+                        <FormLabel>Kondisi *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select condition" />
+                              <SelectValue placeholder="Pilih kondisi" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="new">New</SelectItem>
-                            <SelectItem value="like_new">Like New</SelectItem>
-                            <SelectItem value="good">Good</SelectItem>
-                            <SelectItem value="fair">Fair</SelectItem>
-                            <SelectItem value="poor">Poor</SelectItem>
+                            <SelectItem value="new">Baru</SelectItem>
+                            <SelectItem value="like_new">Seperti Baru</SelectItem>
+                            <SelectItem value="good">Baik</SelectItem>
+                            <SelectItem value="fair">Cukup Baik</SelectItem>
+                            <SelectItem value="poor">Kurang Baik</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -306,7 +306,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     name="stock"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Stock Quantity *</FormLabel>
+                        <FormLabel>Jumlah Stok *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -326,9 +326,9 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
             {/* Pricing */}
             <Card>
               <CardHeader>
-                <CardTitle>Pricing & Negotiation</CardTitle>
+                <CardTitle>Harga & Negosiasi</CardTitle>
                 <CardDescription>
-                  Set base price. Selling price akan otomatis dihitung (Base Price + 10%).
+                  Tetapkan harga dasar. Harga jual akan otomatis dihitung (Harga Dasar + 10%).
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -338,7 +338,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     name="base_price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Base Price *</FormLabel>
+                        <FormLabel>Harga Dasar *</FormLabel>
                         <FormControl>
                           <Input
                             type="text"
@@ -352,7 +352,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                           />
                         </FormControl>
                         <FormDescription>
-                          Your cost or minimum acceptable price
+                          Biaya atau harga minimal yang dapat diterima
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -364,7 +364,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     name="selling_price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Selling Price (Auto) *</FormLabel>
+                        <FormLabel>Harga Jual (Otomatis) *</FormLabel>
                         <FormControl>
                           <Input
                             type="text"
@@ -391,10 +391,10 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
                         <FormLabel className="text-base">
-                          Negotiable
+                          Dapat Dinegosiasi
                         </FormLabel>
                         <FormDescription>
-                          Allow customers to negotiate the price
+                          Izinkan pelanggan menawar harga
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -439,7 +439,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
             {/* Status & Category */}
             <Card>
               <CardHeader>
-                <CardTitle>Status & Category</CardTitle>
+                <CardTitle>Status & Kategori</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -451,13 +451,13 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder="Pilih status" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="available">Available</SelectItem>
-                          <SelectItem value="unavailable">Unavailable</SelectItem>
-                          <SelectItem value="sold">Sold</SelectItem>
+                          <SelectItem value="available">Tersedia</SelectItem>
+                          <SelectItem value="unavailable">Tidak Tersedia</SelectItem>
+                          <SelectItem value="sold">Terjual</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

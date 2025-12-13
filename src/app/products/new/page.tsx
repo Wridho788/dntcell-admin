@@ -10,9 +10,9 @@ export default function NewProductPage() {
       <AdminLayout>
         <div className="space-y-6 mx-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Create Product</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Buat Produk Baru</h1>
             <p className="text-muted-foreground">
-              Add a new product to your catalog
+              Tambahkan produk baru ke katalog Anda
             </p>
           </div>
           
