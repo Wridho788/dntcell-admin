@@ -15,6 +15,14 @@ export function OneSignalClient({ adminId }: OneSignalClientProps) {
     // Only run on client side
     if (typeof window === "undefined") return
 
+    // Check appId first before loading anything
+    const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID
+    
+    if (!appId || appId === 'undefined' || appId === '') {
+      console.warn("[OneSignal] NEXT_PUBLIC_ONESIGNAL_APP_ID not configured, skipping OneSignal initialization")
+      return
+    }
+
     // Load OneSignal script
     const loadOneSignal = async () => {
       try {
@@ -48,13 +56,8 @@ export function OneSignalClient({ adminId }: OneSignalClientProps) {
 
     const initializeOneSignal = async () => {
       try {
-        // Get environment variable on client side
-        const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID
-        
-        if (!appId || appId === 'undefined' || appId === '') {
-          console.warn("[OneSignal] NEXT_PUBLIC_ONESIGNAL_APP_ID not configured, skipping initialization")
-          return
-        }
+        // Get environment variable on client side (already validated above)
+        const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!
 
         // Check if OneSignal is available
         if (!window.OneSignal) {
