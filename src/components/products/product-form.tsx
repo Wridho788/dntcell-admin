@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect as React_useEffect } from 'react'
+import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -50,10 +51,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
     condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor']).default('new'),
     status: z.enum(['available', 'unavailable', 'sold']).default('available'),
     category_id: z.string().optional().nullable(),
-  }).refine(
-    (data) => data.selling_price >= data.base_price + 100000,
-    { message: "Selling price must be at least 100,000 more than base price", path: ["selling_price"] }
-  )
+  })
 
   const defaultValues = {
     name: initialData?.name || '',
@@ -70,6 +68,16 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
   const form = useForm<any>({
     defaultValues,
   })
+
+  // Watch base_price and auto-calculate selling_price (10% above base_price)
+  const basePrice = form.watch('base_price')
+  
+  React.useEffect(() => {
+    if (basePrice > 0) {
+      const calculatedSellingPrice = Math.round(basePrice * 1.1)
+      form.setValue('selling_price', calculatedSellingPrice)
+    }
+  }, [basePrice, form])
 
   // Mutations
   const createMutation = useMutation({
@@ -125,14 +133,6 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
     if (uploadedImages.length === 0) {
       toast.error('Minimal 1 gambar produk harus diupload')
       return
-    }
-    
-    // Client-side validation: selling_price must be at least base_price + 100000
-    if (data.selling_price && data.base_price) {
-      if (data.selling_price < data.base_price + 100000) {
-        toast.error('Selling price must be at least 100,000 more than base price')
-        return
-      }
     }
     
     // Include uploaded images in the product data
@@ -328,7 +328,7 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
               <CardHeader>
                 <CardTitle>Pricing & Negotiation</CardTitle>
                 <CardDescription>
-                  Set product pricing. Selling price must be at least 100,000 more than base price.
+                  Set base price. Selling price akan otomatis dihitung (Base Price + 10%).
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -364,21 +364,19 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     name="selling_price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Selling Price *</FormLabel>
+                        <FormLabel>Selling Price (Auto) *</FormLabel>
                         <FormControl>
                           <Input
                             type="text"
                             placeholder="0"
                             {...field}
                             value={field.value?.toString() || ''}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^0-9]/g, '')
-                              field.onChange(value ? parseInt(value) : 0)
-                            }}
+                            disabled
+                            className="bg-muted cursor-not-allowed"
                           />
                         </FormControl>
                         <FormDescription>
-                          Listed price for customers (must be base price + 100,000)
+                          Otomatis dihitung: Base Price + 10%
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

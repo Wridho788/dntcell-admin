@@ -8,7 +8,7 @@ export default function NewProductPage() {
   return (
     <AuthWrapper requireAdmin={true}>
       <AdminLayout>
-        <div className="space-y-6 space-x-3">
+        <div className="space-y-6 mx-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Create Product</h1>
             <p className="text-muted-foreground">
