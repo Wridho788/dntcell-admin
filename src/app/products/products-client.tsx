@@ -79,9 +79,9 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
         <div className="page-header">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="page-title">Products</h1>
+              <h1 className="page-title">Produk</h1>
               <p className="page-description">
-                Manage your product catalog and inventory
+                Kelola katalog produk dan inventaris Anda
               </p>
             </div>
             
@@ -92,11 +92,11 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
               disabled={isLoading}
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              Muat Ulang
             </Button>
             <Button onClick={handleCreateProduct}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Product
+              Tambah Produk
             </Button>
             </div>
           </div>
@@ -113,9 +113,9 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Search Products</CardTitle>
+                <CardTitle>Cari Produk</CardTitle>
                 <CardDescription>
-                  Find products by name, SKU, or description
+                  Temukan produk berdasarkan nama, SKU, atau deskripsi
                 </CardDescription>
               </div>
               <Button
@@ -123,7 +123,7 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="mr-2 h-4 w-4" />
-                Filters
+                Filter
               </Button>
             </div>
           </CardHeader>
@@ -132,7 +132,7 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
             <div className="flex space-x-2">
               <div className="flex-1">
                 <Input
-                  placeholder="Search products..."
+                  placeholder="Cari produk..."
                   value={searchParams.query || ''}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full"
@@ -156,9 +156,9 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
         {/* Products Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Products ({data.total})</CardTitle>
+            <CardTitle>Produk ({data.total})</CardTitle>
             <CardDescription>
-              Showing {data.products.length} of {data.total} products
+              Menampilkan {data.products.length} dari {data.total} produk
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">

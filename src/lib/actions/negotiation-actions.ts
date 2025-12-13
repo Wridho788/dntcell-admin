@@ -169,7 +169,7 @@ export async function getNegotiationsByProduct(
         `
         *,
         product:products(id, name, main_image_url, base_price, selling_price),
-        buyer:users!negotiations_buyer_id_fkey(id, email, full_name)
+        buyer:profiles!negotiations_buyer_id_fkey(user_id, email, full_name)
       `
       )
       .eq("product_id", productId)
@@ -226,7 +226,7 @@ export async function searchNegotiations(
         `
         *,
         product:products(id, name, main_image_url, base_price, selling_price),
-        buyer:users!negotiations_buyer_id_fkey(id, email, full_name)
+        buyer:profiles!negotiations_buyer_id_fkey(user_id, email, full_name)
       `,
         { count: "exact" }
       )

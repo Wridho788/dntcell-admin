@@ -131,9 +131,9 @@ export function NegotiationsClient() {
     <div className="page-container">
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Negotiations</h1>
+        <h1 className="page-title">Negosiasi</h1>
         <p className="page-description">
-          Manage price negotiations with customers
+          Kelola negosiasi harga dengan pelanggan
         </p>
       </div>
 
@@ -150,7 +150,7 @@ export function NegotiationsClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">Tertunda</CardTitle>
             <TrendingUp className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
@@ -161,7 +161,7 @@ export function NegotiationsClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <CardTitle className="text-sm font-medium">Disetujui</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -172,7 +172,7 @@ export function NegotiationsClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+            <CardTitle className="text-sm font-medium">Ditolak</CardTitle>
             <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -186,8 +186,8 @@ export function NegotiationsClient() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter negotiations by status and time</CardDescription>
+          <CardTitle>Filter</CardTitle>
+          <CardDescription>Filter negosiasi berdasarkan status dan waktu</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
@@ -201,20 +201,20 @@ export function NegotiationsClient() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
+                  <SelectValue placeholder="Semua status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                  <SelectItem value="countered">Countered</SelectItem>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="pending">Tertunda</SelectItem>
+                  <SelectItem value="approved">Disetujui</SelectItem>
+                  <SelectItem value="rejected">Ditolak</SelectItem>
+                  <SelectItem value="countered">Ditawar Balik</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">Time Range</label>
+              <label className="text-sm font-medium mb-2 block">Rentang Waktu</label>
               <Select
                 value={timeFilter}
                 onValueChange={(value) => {
@@ -223,12 +223,12 @@ export function NegotiationsClient() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All time" />
+                  <SelectValue placeholder="Semua waktu" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="all">Semua Waktu</SelectItem>
+                  <SelectItem value="today">Hari Ini</SelectItem>
+                  <SelectItem value="week">Minggu Ini</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -239,15 +239,15 @@ export function NegotiationsClient() {
       {/* Negotiations Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Negotiations ({data?.total || 0})</CardTitle>
+          <CardTitle>Negosiasi ({data?.total || 0})</CardTitle>
         </CardHeader>
         <CardContent>
           {data?.negotiations.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No negotiations found</h3>
+              <h3 className="mt-4 text-lg font-semibold">Tidak ada negosiasi</h3>
               <p className="text-muted-foreground mt-2">
-                No negotiations match the current filters.
+                Tidak ada negosiasi yang cocok dengan filter saat ini.
               </p>
             </div>
           ) : (
@@ -256,14 +256,14 @@ export function NegotiationsClient() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Offer Price</TableHead>
-                      <TableHead>Final Price</TableHead>
+                      <TableHead>Pengguna</TableHead>
+                      <TableHead>Produk</TableHead>
+                      <TableHead>Harga Tawar</TableHead>
+                      <TableHead>Harga Final</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Used</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Digunakan</TableHead>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -307,11 +307,11 @@ export function NegotiationsClient() {
                           {negotiation.status === 'approved' && (
                             negotiation.used ? (
                               <Badge variant="outline" className="border-red-500 text-red-500">
-                                🔒 Used
+                                🔒 Terpakai
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="border-green-500 text-green-500">
-                                ✓ Available
+                                ✓ Tersedia
                               </Badge>
                             )
                           )}
@@ -336,7 +336,7 @@ export function NegotiationsClient() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    Page {page} of {totalPages}
+                    Halaman {page} dari {totalPages}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -345,7 +345,7 @@ export function NegotiationsClient() {
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page === 1}
                     >
-                      Previous
+                      Sebelumnya
                     </Button>
                     <Button
                       variant="outline"
@@ -353,7 +353,7 @@ export function NegotiationsClient() {
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
                     >
-                      Next
+                      Selanjutnya
                     </Button>
                   </div>
                 </div>

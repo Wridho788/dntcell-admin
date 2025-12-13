@@ -21,27 +21,27 @@ const navigation = [
     icon: Home,
   },
   {
-    name: 'Users',
+    name: 'Pengguna',
     href: '/users',
     icon: Users,
   },
   {
-    name: 'Products',
+    name: 'Produk',
     href: '/products',
     icon: Package,
   },
   {
-    name: 'Negotiations',
+    name: 'Negosiasi',
     href: '/negotiations',
     icon: MessageSquare,
   },
   {
-    name: 'Orders',
+    name: 'Pesanan',
     href: '/orders',
     icon: ShoppingCart,
   },
   {
-    name: 'Settings',
+    name: 'Pengaturan',
     href: '/settings',
     icon: Settings,
   },

@@ -150,9 +150,9 @@ export function OrdersClient() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Order Management</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Manajemen Pesanan</h1>
         <p className="text-muted-foreground">
-          Manage orders and track transactions
+          Kelola pesanan dan lacak transaksi
         </p>
       </div>
 
@@ -160,7 +160,7 @@ export function OrdersClient() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Pesanan</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -169,7 +169,7 @@ export function OrdersClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">Tertunda</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
@@ -179,7 +179,7 @@ export function OrdersClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Processing</CardTitle>
+            <CardTitle className="text-sm font-medium">Diproses</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
@@ -189,7 +189,7 @@ export function OrdersClient() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unpaid Amount</CardTitle>
+            <CardTitle className="text-sm font-medium">Belum Dibayar</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -203,14 +203,14 @@ export function OrdersClient() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter orders by status and payment method</CardDescription>
+          <CardTitle>Filter</CardTitle>
+          <CardDescription>Filter pesanan berdasarkan status dan metode pembayaran</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium mb-2 block">
-                Order Status
+                Status Pesanan
               </label>
               <Select
                 value={orderStatusFilter}
@@ -220,21 +220,21 @@ export function OrdersClient() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
+                  <SelectValue placeholder="Semua status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="pending">Tertunda</SelectItem>
+                  <SelectItem value="processing">Diproses</SelectItem>
+                  <SelectItem value="completed">Selesai</SelectItem>
+                  <SelectItem value="canceled">Dibatalkan</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium mb-2 block">
-                Payment Status
+                Status Pembayaran
               </label>
               <Select
                 value={paymentStatusFilter}
@@ -244,20 +244,20 @@ export function OrdersClient() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All payments" />
+                  <SelectValue placeholder="Semua pembayaran" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Payments</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="all">Semua Pembayaran</SelectItem>
+                  <SelectItem value="pending">Tertunda</SelectItem>
+                  <SelectItem value="paid">Lunas</SelectItem>
+                  <SelectItem value="failed">Gagal</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium mb-2 block">
-                Payment Method
+                Metode Pembayaran
               </label>
               <Select
                 value={paymentMethodFilter}
@@ -267,12 +267,12 @@ export function OrdersClient() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All methods" />
+                  <SelectValue placeholder="Semua metode" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="all">Semua Metode</SelectItem>
                   <SelectItem value="transfer">Transfer</SelectItem>
-                  <SelectItem value="cod">Cash on Delivery</SelectItem>
+                  <SelectItem value="cod">Bayar di Tempat</SelectItem>
                   <SelectItem value="ewallet">E-Wallet</SelectItem>
                 </SelectContent>
               </Select>
@@ -284,15 +284,15 @@ export function OrdersClient() {
       {/* Orders Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Orders ({data?.total || 0})</CardTitle>
+          <CardTitle>Pesanan ({data?.total || 0})</CardTitle>
         </CardHeader>
         <CardContent>
           {data?.orders.length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No orders found</h3>
+              <h3 className="mt-4 text-lg font-semibold">Tidak ada pesanan</h3>
               <p className="text-muted-foreground mt-2">
-                No orders match the current filters.
+                Tidak ada pesanan yang cocok dengan filter saat ini.
               </p>
             </div>
           ) : (
@@ -301,14 +301,14 @@ export function OrdersClient() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Buyer</TableHead>
-                      <TableHead>Final Price</TableHead>
-                      <TableHead>Payment</TableHead>
+                      <TableHead>ID Pesanan</TableHead>
+                      <TableHead>Produk</TableHead>
+                      <TableHead>Pembeli</TableHead>
+                      <TableHead>Harga Final</TableHead>
+                      <TableHead>Pembayaran</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -372,7 +372,7 @@ export function OrdersClient() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    Page {page} of {totalPages}
+                    Halaman {page} dari {totalPages}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -381,7 +381,7 @@ export function OrdersClient() {
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page === 1}
                     >
-                      Previous
+                      Sebelumnya
                     </Button>
                     <Button
                       variant="outline"
@@ -389,7 +389,7 @@ export function OrdersClient() {
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
                     >
-                      Next
+                      Selanjutnya
                     </Button>
                   </div>
                 </div>
