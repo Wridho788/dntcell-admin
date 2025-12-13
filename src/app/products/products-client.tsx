@@ -127,7 +127,7 @@ export function ProductsClient({ initialData, searchParams }: ProductsClientProp
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="my-4 space-y-4">
             {/* Search Bar */}
             <div className="flex space-x-2">
               <div className="flex-1">

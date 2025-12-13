@@ -50,7 +50,7 @@ export function ProductStats({ total, products }: ProductStatsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
       {stats.map((stat) => {
         const Icon = stat.icon
         return (

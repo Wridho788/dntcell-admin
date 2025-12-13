@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
+// Cache for admin status to reduce database calls
+const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>()
+const CACHE_DURATION = 60000 // 1 minute
+
 // Hook for getting current user in client components
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -18,14 +22,28 @@ export function useAuth() {
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        // Check admin status
+        // Check cache first
+        const cached = adminCache.get(session.user.id)
+        const now = Date.now()
+        
+        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+          setIsAdmin(cached.isAdmin)
+          setLoading(false)
+          return
+        }
+        
+        // Check admin status from database
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('user_id', session.user.id)
           .maybeSingle()
         
-        setIsAdmin(profile?.role === 'admin' || profile?.role === 'super_admin')
+        const adminStatus = profile?.role === 'admin' || profile?.role === 'super_admin'
+        setIsAdmin(adminStatus)
+        
+        // Update cache
+        adminCache.set(session.user.id, { isAdmin: adminStatus, timestamp: now })
       }
       
       setLoading(false)
@@ -40,14 +58,26 @@ export function useAuth() {
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        // Check admin status
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
+        // Check cache first
+        const cached = adminCache.get(session.user.id)
+        const now = Date.now()
         
-        setIsAdmin(profile?.role === 'admin' || profile?.role === 'super_admin')
+        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+          setIsAdmin(cached.isAdmin)
+        } else {
+          // Check admin status from database
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+          
+          const adminStatus = profile?.role === 'admin' || profile?.role === 'super_admin'
+          setIsAdmin(adminStatus)
+          
+          // Update cache
+          adminCache.set(session.user.id, { isAdmin: adminStatus, timestamp: now })
+        }
       } else {
         setIsAdmin(false)
       }
