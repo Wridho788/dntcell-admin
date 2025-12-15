@@ -69,15 +69,29 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
     defaultValues,
   })
 
-  // Watch base_price and auto-calculate selling_price (10% above base_price)
+  // Watch base_price and category_id, auto-calculate selling_price using pricing rules
   const basePrice = form.watch('base_price')
+  const categoryId = form.watch('category_id')
   
   React.useEffect(() => {
-    if (basePrice > 0) {
-      const calculatedSellingPrice = Math.round(basePrice * 1.1)
-      form.setValue('selling_price', calculatedSellingPrice)
+    if (basePrice > 0 && categoryId) {
+      // Get category name to calculate pricing
+      const category = categories.find(c => c.id === categoryId)
+      if (category) {
+        // Import pricing calculation (client-side)
+        import('@/lib/domain/pricing-rules').then(({ calculateSellingPrice }) => {
+          const calculatedSellingPrice = calculateSellingPrice(category.name, basePrice)
+          form.setValue('selling_price', calculatedSellingPrice)
+        })
+      }
+    } else if (basePrice > 0) {
+      // Fallback to default rule if no category selected
+      import('@/lib/domain/pricing-rules').then(({ calculateSellingPrice }) => {
+        const calculatedSellingPrice = calculateSellingPrice('default', basePrice)
+        form.setValue('selling_price', calculatedSellingPrice)
+      })
     }
-  }, [basePrice, form])
+  }, [basePrice, categoryId, categories, form])
 
   // Mutations
   const createMutation = useMutation({
@@ -328,7 +342,9 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
               <CardHeader>
                 <CardTitle>Harga & Negosiasi</CardTitle>
                 <CardDescription>
-                  Tetapkan harga dasar. Harga jual akan otomatis dihitung (Harga Dasar + 10%).
+                  <strong>Harga ditentukan oleh sistem berdasarkan kategori dan aturan pricing.</strong>
+                  <br />
+                  Anda hanya perlu mengisi harga dasar, sistem akan menghitung harga jual dan range negosiasi secara otomatis.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -364,19 +380,19 @@ export function ProductForm({ mode, initialData, productId }: ProductFormProps) 
                     name="selling_price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Harga Jual (Otomatis) *</FormLabel>
+                        <FormLabel>Harga Jual (Dihitung Sistem) *</FormLabel>
                         <FormControl>
                           <Input
                             type="text"
                             placeholder="0"
                             {...field}
-                            value={field.value?.toString() || ''}
+                            value={field.value?.toLocaleString('id-ID') || '0'}
                             disabled
                             className="bg-muted cursor-not-allowed"
                           />
                         </FormControl>
                         <FormDescription>
-                          Otomatis dihitung: Base Price + 10%
+                          🔒 Harga ditentukan sistem berdasarkan kategori & pricing rules
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

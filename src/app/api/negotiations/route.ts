@@ -6,6 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_cor
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { sendBulkAdminNotification } from '@/lib/onesignal'
+import { validateNegotiationOffer, createPricingSnapshot } from '@/lib/services/pricing-service'
 
 // GET /api/negotiations - List negotiations
 export async function GET(request: NextRequest) {
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     // Validate product is active
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
-      .select('id, name, selling_price, seller_id, is_active, negotiable')
+      .select('id, name, selling_price, base_price, min_nego_price, max_nego_price, seller_id, is_active, negotiable')
       .eq('id', validation.data.product_id)
       .single()
 
@@ -107,6 +108,16 @@ export async function POST(request: NextRequest) {
 
     if (!product.negotiable) {
       return errorResponse('Product is not negotiable', 400)
+    }
+
+    // Validate offer price with pricing rules (HARD LOCK)
+    const priceValidation = await validateNegotiationOffer(
+      validation.data.product_id,
+      validation.data.offer_price
+    )
+
+    if (!priceValidation.valid) {
+      return errorResponse(priceValidation.reason || 'Invalid offer price', 400)
     }
 
     // Insert negotiation

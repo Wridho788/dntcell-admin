@@ -1,18 +1,16 @@
 import { NextRequest } from 'next/server'
-import { z } from 'zod'
 import { supabaseAdmin } from '@/api/_core/supabase-server'
 import { requireAdmin } from '@/api/_core/auth'
 import { successResponse, errorResponse, notFoundResponse } from '@/api/_core/response'
-import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
-import { createPricingSnapshot } from '@/lib/services/pricing-service'
+import { 
+  generateCounterOffer, 
+  validateNegotiationAttempt,
+  createPricingSnapshot 
+} from '@/lib/services/pricing-service'
 
-// POST /api/negotiations/[id]/approve - Approve negotiation
-const approveSchema = z.object({
-  final_price: z.number().positive(),
-})
-
+// POST /api/negotiations/[id]/counter - System generates counter offer
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -24,17 +22,12 @@ export async function POST(
     }
     const auth = authResult
 
-    const validation = await parseRequestBody(request, approveSchema)
-    if (!validation.success) {
-      return errorResponse(validation.error, 422)
-    }
-
     // Get negotiation
     const { data: negotiation, error: fetchError } = await supabaseAdmin
       .from('negotiations')
       .select(`
         *,
-        product:products(id, name, seller_id, base_price, selling_price, min_nego_price, max_nego_price),
+        product:products(id, name, base_price, selling_price, min_nego_price, max_nego_price, category:categories(name)),
         buyer:profiles(user_id, onesignal_player_id)
       `)
       .eq('id', params.id)
@@ -45,25 +38,35 @@ export async function POST(
     }
 
     if (negotiation.status !== 'pending' && negotiation.status !== 'countered') {
-      return errorResponse('Negotiation cannot be approved from current status', 400)
+      return errorResponse('Negotiation cannot be countered from current status', 400)
     }
 
-    // Validate final_price is within acceptable range
-    const product = negotiation.product as any
-    if (validation.data.final_price < product.min_nego_price) {
-      return errorResponse(`Final price cannot be below minimum negotiation price (${product.min_nego_price})`, 400)
+    // Count previous counter attempts
+    const currentAttempts = negotiation.counter_price ? 1 : 0 // Simplified - you may want to track this better
+
+    // Validate negotiation attempt count
+    const attemptValidation = await validateNegotiationAttempt(
+      negotiation.product_id,
+      currentAttempts
+    )
+
+    if (!attemptValidation.valid) {
+      return errorResponse(attemptValidation.reason || 'Maximum negotiation attempts reached', 400)
     }
 
-    if (validation.data.final_price > product.selling_price) {
-      return errorResponse(`Final price cannot exceed selling price (${product.selling_price})`, 400)
-    }
+    // Generate system counter offer (SYSTEM-CONTROLLED)
+    const counterPrice = await generateCounterOffer(
+      negotiation.product_id,
+      negotiation.offer_price,
+      currentAttempts + 1
+    )
 
-    // Update negotiation
+    // Update negotiation with system-generated counter
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('negotiations')
       .update({
-        status: 'approved',
-        final_price: validation.data.final_price,
+        status: 'countered',
+        counter_price: counterPrice,
         admin_id: auth.userId,
         updated_at: new Date().toISOString(),
       })
@@ -76,14 +79,15 @@ export async function POST(
     }
 
     // Create notification for buyer
+    const product = negotiation.product as any
     await supabaseAdmin
       .from('notifications')
       .insert({
         user_id: negotiation.buyer_id,
-        type: 'negotiation_approved',
-        title: 'Negotiation Approved',
-        message: `Your offer for ${product.name} has been approved at ${validation.data.final_price.toLocaleString('id-ID')}`,
-        data: { negotiation_id: params.id, final_price: validation.data.final_price },
+        type: 'negotiation_countered',
+        title: 'Counter Offer Received',
+        message: `Admin countered your offer for ${product.name} with ${counterPrice.toLocaleString('id-ID')}`,
+        data: { negotiation_id: params.id, counter_price: counterPrice },
       })
 
     // Create pricing snapshot for audit
@@ -94,25 +98,31 @@ export async function POST(
       product.max_nego_price,
       {
         offerPrice: negotiation.offer_price,
-        finalPrice: validation.data.final_price,
+        counterPrice: counterPrice,
       }
     )
 
     // Log activity with pricing snapshot
     await logActivity({
       admin_id: auth.userId,
-      action: 'APPROVE_NEGOTIATION',
+      action: 'COUNTER_NEGOTIATION',
       meta: { 
         negotiation_id: params.id,
         product_id: negotiation.product_id,
-        final_price: validation.data.final_price,
+        user_offer: negotiation.offer_price,
+        system_counter: counterPrice,
         pricing: pricingSnapshot,
       },
     })
 
-    // TODO: Trigger OneSignal notification to buyer
-
-    return successResponse(updated, 'Negotiation approved successfully')
+    return successResponse(
+      { 
+        negotiation: updated, 
+        counter_price: counterPrice,
+        message: 'System-generated counter offer sent successfully'
+      }, 
+      'Counter offer generated'
+    )
   } catch (error) {
     return handleApiError(error)
   }

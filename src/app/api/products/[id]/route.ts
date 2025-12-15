@@ -6,6 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse 
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { recalculateProductPricing, createPricingSnapshot } from '@/lib/services/pricing-service'
 
 // GET /api/products/[id] - Get product details
 export async function GET(
@@ -40,7 +41,7 @@ const updateProductSchema = z.object({
   description: z.string().optional(),
   condition: z.enum(['new', 'like_new', 'good', 'fair']).optional(),
   base_price: z.number().positive().optional(),
-  selling_price: z.number().positive().optional(),
+  // Note: selling_price, min_nego_price, max_nego_price are auto-calculated
   negotiable: z.boolean().optional(),
   category_id: z.string().uuid().optional(),
   status: z.enum(['available', 'sold', 'reserved']).optional(),
@@ -77,11 +78,27 @@ export async function PUT(
       return errorResponse('You do not have permission to update this product', 403)
     }
 
-    // Update product
+    // Recalculate pricing if base_price or category_id changed
+    let pricingUpdate = {}
+    if (validation.data.base_price || validation.data.category_id) {
+      const pricing = await recalculateProductPricing(
+        params.id,
+        validation.data.base_price,
+        validation.data.category_id
+      )
+      pricingUpdate = {
+        selling_price: pricing.sellingPrice,
+        min_nego_price: pricing.minNegoPrice,
+        max_nego_price: pricing.maxNegoPrice,
+      }
+    }
+
+    // Update product with calculated prices
     const { data: product, error: updateError } = await supabaseAdmin
       .from('products')
       .update({
         ...validation.data,
+        ...pricingUpdate,
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
@@ -92,11 +109,24 @@ export async function PUT(
       return errorResponse(updateError.message)
     }
 
-    // Log activity
+    // Create pricing snapshot if pricing changed
+    const pricingSnapshot = Object.keys(pricingUpdate).length > 0
+      ? createPricingSnapshot(
+          product.base_price,
+          product.selling_price,
+          product.min_nego_price,
+          product.max_nego_price
+        )
+      : undefined
+
+    // Log activity with pricing snapshot
     await logActivity({
       admin_id: auth.userId,
       action: 'UPDATE_PRODUCT',
-      meta: { product_id: params.id },
+      meta: { 
+        product_id: params.id,
+        ...(pricingSnapshot && { pricing: pricingSnapshot }),
+      },
     })
 
     return successResponse(product, 'Product updated successfully')

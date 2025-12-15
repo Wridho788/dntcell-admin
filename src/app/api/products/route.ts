@@ -6,6 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse 
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { calculateProductPricing, createPricingSnapshot } from '@/lib/services/pricing-service'
 
 // GET /api/products - List products with filters
 export async function GET(request: NextRequest) {
@@ -78,7 +79,7 @@ const createProductSchema = z.object({
   description: z.string().optional(),
   condition: z.enum(['new', 'like_new', 'good', 'fair']),
   base_price: z.number().positive(),
-  selling_price: z.number().positive(),
+  // Note: selling_price, min_nego_price, max_nego_price are auto-calculated
   negotiable: z.boolean().default(false),
   category_id: z.string().uuid(),
   status: z.enum(['available', 'sold', 'reserved']).default('available'),
@@ -114,13 +115,23 @@ export async function POST(request: NextRequest) {
       return errorResponse('Invalid category_id', 422)
     }
 
-    // Insert product
+    // Calculate pricing based on rules (SYSTEM-CONTROLLED)
+    const pricing = await calculateProductPricing(
+      validation.data.category_id,
+      validation.data.base_price
+    )
+
+    // Insert product with calculated prices
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .insert({
         ...productData,
         seller_id: auth.userId,
         is_active: true,
+        // Override with system-calculated prices
+        selling_price: pricing.sellingPrice,
+        min_nego_price: pricing.minNegoPrice,
+        max_nego_price: pricing.maxNegoPrice,
       })
       .select()
       .single()
@@ -143,11 +154,23 @@ export async function POST(request: NextRequest) {
         .insert(imageInserts)
     }
 
-    // Log activity
+    // Create pricing snapshot for audit
+    const pricingSnapshot = createPricingSnapshot(
+      pricing.basePrice,
+      pricing.sellingPrice,
+      pricing.minNegoPrice,
+      pricing.maxNegoPrice
+    )
+
+    // Log activity with pricing snapshot
     await logActivity({
       admin_id: auth.userId,
       action: 'CREATE_PRODUCT',
-      meta: { product_id: product.id, name: product.name },
+      meta: { 
+        product_id: product.id, 
+        name: product.name,
+        pricing: pricingSnapshot,
+      },
     })
 
     return successResponse(product, 'Product created successfully', 201)
