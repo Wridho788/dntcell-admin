@@ -29,6 +29,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft, User, Package, CheckCircle, XCircle, MessageSquare } from "lucide-react"
+import { ActivityTimeline } from "@/components/activity/activity-timeline"
 
 const negotiationStatusColors: Record<NegotiationStatus, string> = {
   pending: "bg-yellow-500",
@@ -423,6 +424,9 @@ export function NegotiationDetailClient({ negotiationId }: NegotiationDetailClie
           )}
         </CardContent>
       </Card>
+
+      {/* Activity Timeline */}
+      <ActivityTimeline negotiationId={negotiationId} />
 
       {/* Approve Dialog */}
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>

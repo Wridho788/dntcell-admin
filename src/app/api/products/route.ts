@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
     // Log activity with pricing snapshot
     await logActivity({
       admin_id: auth.userId,
-      action: 'CREATE_PRODUCT',
+      action: 'PRODUCT_CREATED',
       meta: { 
         product_id: product.id, 
         name: product.name,

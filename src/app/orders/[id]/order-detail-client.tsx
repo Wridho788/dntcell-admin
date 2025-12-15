@@ -36,6 +36,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft, Package, User, CreditCard, Clock } from "lucide-react"
+import { OrderStatusHistory } from "@/components/activity/order-status-history"
 
 const orderStatusColors: Record<OrderStatus, string> = {
   pending: "bg-yellow-500",
@@ -534,6 +535,9 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Order Status History */}
+      <OrderStatusHistory orderId={orderId} />
 
       {/* Cancel Confirmation Dialog */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

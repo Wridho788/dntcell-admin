@@ -122,7 +122,7 @@ export async function PUT(
     // Log activity with pricing snapshot
     await logActivity({
       admin_id: auth.userId,
-      action: 'UPDATE_PRODUCT',
+      action: 'PRODUCT_UPDATED',
       meta: { 
         product_id: params.id,
         ...(pricingSnapshot && { pricing: pricingSnapshot }),
@@ -177,7 +177,7 @@ export async function DELETE(
     // Log activity
     await logActivity({
       admin_id: auth.userId,
-      action: 'DELETE_PRODUCT',
+      action: 'PRODUCT_DELETED',
       meta: { product_id: params.id, name: existingProduct.name },
     })
 

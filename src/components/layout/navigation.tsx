@@ -11,7 +11,8 @@ import {
   Package,
   LogOut,
   ShoppingCart,
-  MessageSquare
+  MessageSquare,
+  FileText
 } from 'lucide-react'
 
 const navigation = [
@@ -39,6 +40,11 @@ const navigation = [
     name: 'Pesanan',
     href: '/orders',
     icon: ShoppingCart,
+  },
+  {
+    name: 'Activity Logs',
+    href: '/activity',
+    icon: FileText,
   },
   {
     name: 'Pengaturan',
