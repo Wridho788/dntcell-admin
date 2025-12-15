@@ -6,7 +6,7 @@ import { successResponse, errorResponse, notFoundResponse } from '@/api/_core/re
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
-import { NegotiationStatus, isValidTransition } from '@/lib/domain/negotiation-states'
+import { canReject } from '@/lib/utils/negotiation-state-machine'
 
 // POST /api/negotiations/[id]/reject - Reject negotiation
 const rejectSchema = z.object({
@@ -29,14 +29,10 @@ export async function POST(
       return errorResponse(validation.error, 422)
     }
 
-    // Get negotiation
+    // Get negotiation - manual join to avoid FK issues
     const { data: negotiation, error: fetchError } = await supabaseAdmin
       .from('negotiations')
-      .select(`
-        *,
-        product:products(id, name),
-        buyer:profiles!negotiations_buyer_id_fkey(user_id, onesignal_player_id)
-      `)
+      .select('*')
       .eq('id', params.id)
       .single()
 
@@ -44,18 +40,30 @@ export async function POST(
       return notFoundResponse('Negotiation not found')
     }
 
-    // Validate state transition
-    if (!isValidTransition(negotiation.status, NegotiationStatus.REJECTED)) {
-      return errorResponse(`Cannot reject from status: ${negotiation.status}`, 400)
+    // Fetch product separately
+    const { data: product } = await supabaseAdmin
+      .from('products')
+      .select('id, name')
+      .eq('id', negotiation.product_id)
+      .single()
+
+    if (!product) {
+      return notFoundResponse('Product not found')
     }
 
-    // Update negotiation with row-level lock
+    // Use state machine for validation
+    if (!canReject(negotiation.status)) {
+      return errorResponse(`Cannot reject negotiation from status: ${negotiation.status}`, 400)
+    }
+
+    // Update negotiation with row-level lock (optimistic locking)
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('negotiations')
       .update({
-        status: NegotiationStatus.REJECTED,
+        status: 'rejected',
         admin_id: auth.userId,
         note: validation.data.note,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
       .eq('status', negotiation.status) // Optimistic locking
@@ -70,22 +78,23 @@ export async function POST(
     await supabaseAdmin
       .from('notifications')
       .insert({
-        user_id: negotiation.user_id,
+        user_id: negotiation.buyer_id,
         type: 'negotiation_rejected',
         title: 'Negotiation Rejected',
-        message: `Your offer for ${negotiation.product.name} has been rejected`,
-        data: { negotiation_id: params.id, note: validation.data.note },
+        message: `Your offer for ${product.name} has been rejected${validation.data.note ? ': ' + validation.data.note : ''}`,
       })
 
     // Log activity
     await logActivity({
       admin_id: auth.userId,
-      action: 'REJECT_NEGOTIATION',
+      action: 'NEGOTIATION_REJECTED',
       meta: { 
         negotiation_id: params.id,
         product_id: negotiation.product_id,
+        buyer_id: negotiation.buyer_id,
         from_status: negotiation.status,
-        to_status: NegotiationStatus.REJECTED,
+        to_status: 'rejected',
+        note: validation.data.note,
       },
     })
 

@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
         admin_id
       `, { count: 'exact' })
 
-    // Filter by user role
-    // if (!auth.isAdmin) {
-    //   query = query.eq('user_id', auth.userId)
-    // }
+    // Filter by user role - SECURITY: Non-admins can only see their own negotiations
+    if (!auth.isAdmin) {
+      query = query.eq('buyer_id', auth.userId)
+    }
 
     if (productId) {
       query = query.eq('product_id', productId)
@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
         user_id: product.seller_id,
         type: 'new_negotiation',
         title: 'New Price Negotiation',
-        message: `New offer for ${product.name}: ${validation.data.offer_price}`,
-        data: { negotiation_id: negotiation.id },
+        message: `New offer for ${product.name}: Rp ${validation.data.offer_price.toLocaleString('id-ID')}`,
+        // Note: data field should be JSONB in schema
       })
 
     // Send push notification to all admins

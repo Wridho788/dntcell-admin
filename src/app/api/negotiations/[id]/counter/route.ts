@@ -9,6 +9,7 @@ import {
   validateNegotiationAttempt,
   createPricingSnapshot 
 } from '@/lib/services/pricing-service'
+import { canCounter } from '@/lib/utils/negotiation-state-machine'
 
 // POST /api/negotiations/[id]/counter - System generates counter offer
 export async function POST(
@@ -22,14 +23,10 @@ export async function POST(
     }
     const auth = authResult
 
-    // Get negotiation
+    // Get negotiation - manual join to avoid FK issues
     const { data: negotiation, error: fetchError } = await supabaseAdmin
       .from('negotiations')
-      .select(`
-        *,
-        product:products(id, name, base_price, selling_price, min_nego_price, max_nego_price, category:categories(name)),
-        buyer:profiles(user_id, onesignal_player_id)
-      `)
+      .select('*')
       .eq('id', params.id)
       .single()
 
@@ -37,12 +34,31 @@ export async function POST(
       return notFoundResponse('Negotiation not found')
     }
 
-    if (negotiation.status !== 'pending' && negotiation.status !== 'countered') {
-      return errorResponse('Negotiation cannot be countered from current status', 400)
+    // Fetch product and category separately
+    const { data: product } = await supabaseAdmin
+      .from('products')
+      .select('id, name, base_price, selling_price, min_nego_price, max_nego_price, category_id')
+      .eq('id', negotiation.product_id)
+      .single()
+
+    if (!product) {
+      return notFoundResponse('Product not found')
     }
 
-    // Count previous counter attempts
-    const currentAttempts = negotiation.counter_price ? 1 : 0 // Simplified - you may want to track this better
+    const { data: category } = await supabaseAdmin
+      .from('categories')
+      .select('name')
+      .eq('id', product.category_id)
+      .single()
+
+    // Use state machine for validation
+    if (!canCounter(negotiation.status)) {
+      return errorResponse(`Cannot counter negotiation from status: ${negotiation.status}`, 400)
+    }
+
+    // TODO: Add counter_attempt field to negotiations table for proper tracking
+    // For now, count based on counter_price existence
+    const currentAttempts = negotiation.counter_price ? 1 : 0
 
     // Validate negotiation attempt count
     const attemptValidation = await validateNegotiationAttempt(
@@ -79,15 +95,13 @@ export async function POST(
     }
 
     // Create notification for buyer
-    const product = negotiation.product as any
     await supabaseAdmin
       .from('notifications')
       .insert({
         user_id: negotiation.buyer_id,
         type: 'negotiation_countered',
         title: 'Counter Offer Received',
-        message: `Admin countered your offer for ${product.name} with ${counterPrice.toLocaleString('id-ID')}`,
-        data: { negotiation_id: params.id, counter_price: counterPrice },
+        message: `Admin countered your offer for ${product.name} with Rp ${counterPrice.toLocaleString('id-ID')}`,
       })
 
     // Create pricing snapshot for audit
@@ -105,13 +119,16 @@ export async function POST(
     // Log activity with pricing snapshot
     await logActivity({
       admin_id: auth.userId,
-      action: 'COUNTER_NEGOTIATION',
+      action: 'NEGOTIATION_COUNTERED',
       meta: { 
         negotiation_id: params.id,
         product_id: negotiation.product_id,
+        buyer_id: negotiation.buyer_id,
         user_offer: negotiation.offer_price,
         system_counter: counterPrice,
-        pricing: pricingSnapshot,
+        counter_attempt: currentAttempts + 1,
+        pricing_snapshot: pricingSnapshot,
+        note: 'System-generated counter offer',
       },
     })
 
