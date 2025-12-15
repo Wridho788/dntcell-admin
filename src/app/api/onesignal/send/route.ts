@@ -4,11 +4,12 @@ import { requireAdmin } from '@/api/_core/auth'
 import { successResponse, errorResponse } from '@/api/_core/response'
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
+import { logActivity } from '@/api/_core/activity-logger'
 import { sendAdminNotification, sendBulkAdminNotification } from '@/lib/onesignal'
 
-// Schema for sending notification
+// Schema for sending notification - renamed adminId to targetUserId for clarity
 const sendNotificationSchema = z.object({
-  adminId: z.string().uuid().optional(),
+  targetUserId: z.string().uuid().optional(),
   title: z.string().min(1),
   message: z.string().min(1),
   data: z.record(z.string(), z.any()).optional(),
@@ -18,7 +19,7 @@ const sendNotificationSchema = z.object({
 
 /**
  * POST /api/onesignal/send
- * Send push notification to admin(s) - Admin only
+ * Send push notification to user(s) - Admin only
  */
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
     if ('userId' in authResult === false) {
       return authResult // Return error response
     }
+    const auth = authResult
 
     // Validate request body
     const parseResult = await parseRequestBody(request, sendNotificationSchema)
@@ -34,7 +36,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(parseResult.error, 422)
     }
 
-    const { adminId, title, message, data, url, sendToAll } = parseResult.data
+    const { targetUserId, title, message, data, url, sendToAll } = parseResult.data
 
     let result
 
@@ -42,12 +44,36 @@ export async function POST(request: NextRequest) {
       // Send to all admins
       console.log('[OneSignal Send] Sending to all admins:', { title, message })
       result = await sendBulkAdminNotification(title, message, data, url)
-    } else if (adminId) {
-      // Send to specific admin
-      console.log('[OneSignal Send] Sending to admin:', { adminId, title, message })
-      result = await sendAdminNotification(adminId, title, message, data, url)
+      
+      // Log broadcast activity
+      await logActivity({
+        admin_id: auth.userId,
+        action: 'SEND_PUSH_NOTIFICATION_BROADCAST',
+        meta: { 
+          title,
+          message,
+          recipients: result.recipients || 0,
+          notification_id: result.id,
+        },
+      })
+    } else if (targetUserId) {
+      // Send to specific user
+      console.log('[OneSignal Send] Sending to user:', { targetUserId, title, message })
+      result = await sendAdminNotification(targetUserId, title, message, data, url)
+      
+      // Log single send activity
+      await logActivity({
+        admin_id: auth.userId,
+        action: 'SEND_PUSH_NOTIFICATION',
+        meta: { 
+          target_user_id: targetUserId,
+          title,
+          message,
+          notification_id: result.id,
+        },
+      })
     } else {
-      return errorResponse('Either adminId or sendToAll must be specified', 400)
+      return errorResponse('Either targetUserId or sendToAll must be specified', 400)
     }
 
     if (!result.success) {
