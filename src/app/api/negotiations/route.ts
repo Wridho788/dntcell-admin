@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         product:products(id, name, selling_price, main_image_url),
-        buyer:profiles(user_id, full_name, email)
+        buyer:profiles!negotiations_buyer_id_fkey(user_id, full_name, email)
       `, { count: 'exact' })
 
     // Filter by user role
