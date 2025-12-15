@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       .from('activity_logs')
       .select(`
         *,
-        admin:profiles!activity_logs_admin_id_fkey(user_id, full_name)
+        admin:profiles(user_id, full_name)
       `, { count: 'exact' })
 
     if (adminId) {

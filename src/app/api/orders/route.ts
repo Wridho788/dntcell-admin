@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         product:products(id, name, main_image_url),
-        buyer:profiles!orders_buyer_id_fkey(user_id, full_name, email),
+        buyer:profiles(user_id, full_name, email),
         negotiation:negotiations(id, offer_price, final_price)
       `, { count: 'exact' })
 

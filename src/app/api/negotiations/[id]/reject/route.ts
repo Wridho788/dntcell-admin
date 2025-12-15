@@ -35,7 +35,7 @@ export async function POST(
       .select(`
         *,
         product:products(id, name),
-        buyer:profiles!negotiations_user_id_fkey(user_id, onesignal_player_id)
+        buyer:profiles(user_id, onesignal_player_id)
       `)
       .eq('id', params.id)
       .single()

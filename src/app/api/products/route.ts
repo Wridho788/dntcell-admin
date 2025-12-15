@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         category:categories(id, name),
-        seller:profiles!products_seller_id_fkey(user_id, full_name),
+        seller:profiles(user_id, full_name),
         main_image:product_images(image_url, alt_text)
       `, { count: 'exact' })
 

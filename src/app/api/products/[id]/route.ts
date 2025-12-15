@@ -18,7 +18,7 @@ export async function GET(
       .select(`
         *,
         category:categories(id, name),
-        seller:profiles!products_seller_id_fkey(user_id, full_name),
+        seller:profiles(user_id, full_name),
         images:product_images(id, image_url, alt_text, is_main)
       `)
       .eq('id', params.id)

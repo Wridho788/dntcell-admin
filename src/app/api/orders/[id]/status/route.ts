@@ -36,7 +36,7 @@ export async function PUT(
       .select(`
         *,
         product:products(id, name),
-        buyer:profiles!orders_buyer_id_fkey(user_id, onesignal_player_id)
+        buyer:profiles(user_id, onesignal_player_id)
       `)
       .eq('id', params.id)
       .single()
