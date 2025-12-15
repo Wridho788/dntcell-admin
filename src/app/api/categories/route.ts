@@ -6,6 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_cor
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { slugify } from '@/lib/utils/slugify'
 
 // GET /api/categories - List all categories
 export async function GET(request: NextRequest) {
@@ -28,7 +29,6 @@ export async function GET(request: NextRequest) {
 // POST /api/categories - Create new category (admin only)
 const createCategorySchema = z.object({
   name: z.string().min(1),
-  description: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -47,9 +47,15 @@ export async function POST(request: NextRequest) {
       return errorResponse(validation.error, 422)
     }
 
+    // Auto-generate slug from name
+    const slug = slugify(validation.data.name)
+
     const { data: category, error } = await supabaseAdmin
       .from('categories')
-      .insert(validation.data)
+      .insert({
+        name: validation.data.name,
+        slug,
+      })
       .select()
       .single()
 
@@ -59,8 +65,12 @@ export async function POST(request: NextRequest) {
 
     await logActivity({
       admin_id: auth.userId,
-      action: 'CREATE_CATEGORY',
-      meta: { category_id: category.id, name: category.name },
+      action: 'CATEGORY_CREATED',
+      meta: { 
+        category_id: category.id, 
+        name: category.name,
+        slug: category.slug,
+      },
     })
 
     return successResponse(category, 'Category created successfully', 201)

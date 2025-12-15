@@ -97,7 +97,7 @@ export function ActivityTimeline({ negotiationId }: ActivityTimelineProps) {
                   {/* Activity item */}
                   <div className="flex gap-4">
                     {/* Icon */}
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full ${config.color} flex items-center justify-center`}>
+                    <div className={`shrink-0 w-8 h-8 rounded-full ${config.color} flex items-center justify-center`}>
                       <Icon className="h-4 w-4" />
                     </div>
 

@@ -6,6 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse 
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { slugify } from '@/lib/utils/slugify'
 
 // GET /api/categories/[id] - Get category details
 export async function GET(
@@ -32,7 +33,6 @@ export async function GET(
 // PATCH /api/categories/[id] - Update category (admin only)
 const updateCategorySchema = z.object({
   name: z.string().min(1).optional(),
-  description: z.string().optional(),
 })
 
 export async function PATCH(
@@ -54,9 +54,15 @@ export async function PATCH(
       return errorResponse(validation.error, 422)
     }
 
+    // Regenerate slug if name is being updated
+    const updateData: any = { ...validation.data }
+    if (validation.data.name) {
+      updateData.slug = slugify(validation.data.name)
+    }
+
     const { data: category, error } = await supabaseAdmin
       .from('categories')
-      .update(validation.data)
+      .update(updateData)
       .eq('id', params.id)
       .select()
       .single()
@@ -67,8 +73,11 @@ export async function PATCH(
 
     await logActivity({
       admin_id: auth.userId,
-      action: 'UPDATE_CATEGORY',
-      meta: { category_id: params.id },
+      action: 'CATEGORY_UPDATED',
+      meta: { 
+        category_id: params.id,
+        changes: validation.data,
+      },
     })
 
     return successResponse(category, 'Category updated successfully')
@@ -92,6 +101,30 @@ export async function DELETE(
       return errorResponse('Admin access required', 403)
     }
 
+    // Check if category exists and get its name for logging
+    const { data: existingCategory, error: fetchError } = await supabaseAdmin
+      .from('categories')
+      .select('id, name')
+      .eq('id', params.id)
+      .single()
+
+    if (fetchError || !existingCategory) {
+      return notFoundResponse('Category not found')
+    }
+
+    // Prevent delete if category is used by products
+    const { count } = await supabaseAdmin
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', params.id)
+
+    if ((count ?? 0) > 0) {
+      return errorResponse(
+        'Category cannot be deleted because it is used by products',
+        409
+      )
+    }
+
     const { error } = await supabaseAdmin
       .from('categories')
       .delete()
@@ -103,8 +136,12 @@ export async function DELETE(
 
     await logActivity({
       admin_id: auth.userId,
-      action: 'DELETE_CATEGORY',
-      meta: { category_id: params.id },
+      action: 'CATEGORY_DELETED',
+      meta: { 
+        category_id: params.id,
+        name: existingCategory.name,
+        action: 'hard_delete',
+      },
     })
 
     return successResponse(null, 'Category deleted successfully')
