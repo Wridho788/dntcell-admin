@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { searchNegotiations } from "@/lib/actions"
 import { type NegotiationStatus } from "@/lib/validations/negotiation"
+import { AdminLayout } from "@/components/layout"
 import {
   Card,
   CardContent,
@@ -128,14 +129,15 @@ export function NegotiationsClient() {
   }
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title">Negosiasi</h1>
-        <p className="page-description">
-          Kelola negosiasi harga dengan pelanggan
-        </p>
-      </div>
+    <AdminLayout>
+      <div className="page-container">
+        {/* Header */}
+        <div className="page-header">
+          <h1 className="page-title">Negosiasi</h1>
+          <p className="page-description">
+            Kelola negosiasi harga dengan pelanggan
+          </p>
+        </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -362,6 +364,7 @@ export function NegotiationsClient() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
