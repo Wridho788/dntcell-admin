@@ -19,37 +19,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     
     const productId = searchParams.get('product_id')
+    const status = searchParams.get('status')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
+    // Build query - select specific fields to avoid relationship issues
     let query = supabaseAdmin
-  .from('negotiations')
-  .select(`
-    id,
-    offer_price,
-    final_price,
-    note,
-    created_at,
-
-    product:products (
-      id,
-      name,
-      selling_price,
-      main_image_url
-    ),
-
-    buyer:profiles!negotiations_user_fk (
-      id,
-      email
-    ),
-
-    admin:profiles!negotiations_admin_fk (
-      id,
-      email
-    )
-  `,
-  { count: 'exact' }
-)
+      .from('negotiations')
+      .select(`
+        *,
+        product_id,
+        buyer_id,
+        admin_id
+      `, { count: 'exact' })
 
     // Filter by user role
     // if (!auth.isAdmin) {
@@ -78,8 +60,33 @@ export async function GET(request: NextRequest) {
       return errorResponse(error.message)
     }
 
+    // Fetch related data manually to avoid relationship issues
+    const negotiationsWithDetails = await Promise.all(
+      (data || []).map(async (negotiation) => {
+        // Fetch product details
+        const { data: product } = await supabaseAdmin
+          .from('products')
+          .select('id, name, selling_price, main_image_url')
+          .eq('id', negotiation.product_id)
+          .single()
+
+        // Fetch buyer details
+        const { data: buyer } = await supabaseAdmin
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .eq('user_id', negotiation.buyer_id)
+          .single()
+
+        return {
+          ...negotiation,
+          product: product || null,
+          buyer: buyer || null,
+        }
+      })
+    )
+
     return successResponse({
-      negotiations: data,
+      negotiations: negotiationsWithDetails,
       pagination: {
         page,
         limit,

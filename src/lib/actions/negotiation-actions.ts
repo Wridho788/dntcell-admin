@@ -165,13 +165,7 @@ export async function getNegotiationsByProduct(
 
     const { data: negotiations, error } = await supabase
       .from("negotiations")
-      .select(
-        `
-        *,
-        product:products(id, name, main_image_url, base_price, selling_price),
-        buyer:profiles!negotiations_buyer_id_fkey(user_id, email, full_name)
-      `
-      )
+      .select("*")
       .eq("product_id", productId)
       .order("created_at", { ascending: false })
 
@@ -183,9 +177,34 @@ export async function getNegotiationsByProduct(
       }
     }
 
+    // Fetch related data manually
+    const negotiationsWithDetails = await Promise.all(
+      (negotiations || []).map(async (negotiation: any) => {
+        // Fetch product details
+        const { data: product } = await supabase
+          .from("products")
+          .select("id, name, main_image_url, base_price, selling_price")
+          .eq("id", negotiation.product_id)
+          .single()
+
+        // Fetch buyer details
+        const { data: buyer } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name")
+          .eq("user_id", negotiation.buyer_id)
+          .single()
+
+        return {
+          ...negotiation,
+          product: product || null,
+          buyer: buyer || null,
+        }
+      })
+    )
+
     return {
       success: true,
-      data: negotiations as any,
+      data: negotiationsWithDetails as any,
     }
   } catch (error: any) {
     console.error("Error fetching negotiations:", error)
@@ -219,17 +238,10 @@ export async function searchNegotiations(
 
     const supabase = await createServerSupabaseClient()
 
-    // Build query
+    // Build query - fetch negotiations first without joins
     let query = supabase
       .from("negotiations")
-      .select(
-        `
-        *,
-        product:products(id, name, main_image_url, base_price, selling_price),
-        buyer:profiles!negotiations_buyer_id_fkey(user_id, email, full_name)
-      `,
-        { count: "exact" }
-      )
+      .select("*", { count: "exact" })
 
     // Apply filters
     if (product_id) {
@@ -260,10 +272,35 @@ export async function searchNegotiations(
       }
     }
 
+    // Fetch related data manually
+    const negotiationsWithDetails = await Promise.all(
+      (negotiations || []).map(async (negotiation: any) => {
+        // Fetch product details
+        const { data: product } = await supabase
+          .from("products")
+          .select("id, name, main_image_url, base_price, selling_price")
+          .eq("id", negotiation.product_id)
+          .single()
+
+        // Fetch buyer details
+        const { data: buyer } = await supabase
+          .from("profiles")
+          .select("user_id, email, full_name")
+          .eq("user_id", negotiation.buyer_id)
+          .single()
+
+        return {
+          ...negotiation,
+          product: product || null,
+          buyer: buyer || null,
+        }
+      })
+    )
+
     return {
       success: true,
       data: {
-        negotiations: negotiations as any,
+        negotiations: negotiationsWithDetails as any,
         total: count || 0,
       },
     }
