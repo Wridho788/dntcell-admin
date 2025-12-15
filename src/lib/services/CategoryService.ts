@@ -6,21 +6,16 @@ import type { ProductCategory } from '@/lib/validations/product'
 export interface DbCategory {
   id: string
   name: string
-  description?: string | null
-  is_active: boolean
+  slug: string
   created_at: string
-  updated_at?: string
 }
 
 export interface CreateCategoryInput {
   name: string
-  description?: string
 }
 
 export interface UpdateCategoryInput {
   name?: string
-  description?: string
-  is_active?: boolean
 }
 
 export class CategoryService {
@@ -70,22 +65,19 @@ export class CategoryService {
       {
         id: '1',
         name: 'Smartphones',
-        description: 'Mobile phones and accessories',
-        is_active: true,
+        slug: 'smartphones',
         created_at: new Date().toISOString()
       },
       {
         id: '2', 
         name: 'Tablets',
-        description: 'Tablets and e-readers',
-        is_active: true,
+        slug: 'tablets',
         created_at: new Date().toISOString()
       },
       {
         id: '3',
         name: 'Laptops',
-        description: 'Laptops and notebooks', 
-        is_active: true,
+        slug: 'laptops',
         created_at: new Date().toISOString()
       }
     ]
@@ -135,130 +127,94 @@ export class CategoryService {
     }
   }
 
-  // Create new category
+  // Create new category (calls API endpoint)
   async createCategory(categoryData: CreateCategoryInput): Promise<{ success: boolean; data?: DbCategory; error?: string }> {
     try {
       if (!categoryData.name?.trim()) {
         return { success: false, error: 'Category name is required' }
       }
 
-      const dbData = {
-        name: categoryData.name.trim(),
-        description: categoryData.description?.trim() || null,
-        is_active: true,
-        created_at: new Date().toISOString(),
+      // Call API endpoint - slug will be auto-generated on server
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: categoryData.name.trim(),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Failed to create category' }
       }
 
-      const { data, error } = await this.supabase
-        .from('categories')
-        .insert(dbData)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error creating category:', error)
-        if (error.code === '23505') {
-          return { success: false, error: 'Category name already exists' }
-        }
-        return { success: false, error: error.message }
-      }
-
-      return { success: true, data: data as unknown as DbCategory }
+      return { success: true, data: result.data }
     } catch (error) {
-      console.error('CategoryService.updateCategory error:', error)
+      console.error('CategoryService.createCategory error:', error)
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Category creation not available (table not configured)'
+        error: error instanceof Error ? error.message : 'Failed to create category'
       }
     }
   }
 
-  // Update category
+  // Update category (calls API endpoint)
   async updateCategory(id: string, categoryData: UpdateCategoryInput): Promise<{ success: boolean; data?: DbCategory; error?: string }> {
     try {
       if (!id) {
         return { success: false, error: 'Category ID is required' }
       }
 
-      const updateData: Partial<DbCategory> = {
-        updated_at: new Date().toISOString()
-      }
-      
-      if (categoryData.name !== undefined) {
-        if (!categoryData.name.trim()) {
-          return { success: false, error: 'Category name cannot be empty' }
-        }
-        updateData.name = categoryData.name.trim()
-      }
-      
-      if (categoryData.description !== undefined) {
-        updateData.description = categoryData.description?.trim() || null
-      }
-      
-      if (categoryData.is_active !== undefined) {
-        updateData.is_active = categoryData.is_active
+      if (categoryData.name !== undefined && !categoryData.name.trim()) {
+        return { success: false, error: 'Category name cannot be empty' }
       }
 
-      const { data, error } = await this.supabase
-        .from('categories')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single()
+      // Call API endpoint - slug will be auto-regenerated if name changes
+      const response = await fetch(`/api/categories/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: categoryData.name?.trim(),
+        }),
+      })
 
-      if (error) {
-        console.error('Error updating category:', error)
-        if (error.code === '23505') {
-          return { success: false, error: 'Category name already exists' }
-        }
-        return { success: false, error: error.message }
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Failed to update category' }
       }
 
-      return { success: true, data: data as unknown as DbCategory }
+      return { success: true, data: result.data }
     } catch (error) {
       console.error('CategoryService.updateCategory error:', error)
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Category update not available (table not configured)'
+        error: error instanceof Error ? error.message : 'Failed to update category'
       }
     }
   }
 
-  // Soft delete category
+  // Delete category (calls API endpoint with protection)
   async deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
     try {
       if (!id) {
         return { success: false, error: 'Category ID is required' }
       }
 
-      // Check if category is being used by any products
-      const { data: products, error: checkError } = await this.supabase
-        .from('profiles')
-        .select('id')
-        .eq('category_id', id)
-        .limit(1)
+      // Call API endpoint - will check if category is used by products
+      const response = await fetch(`/api/categories/${id}`, {
+        method: 'DELETE',
+      })
 
-      if (checkError) {
-        console.error('Error checking category usage:', checkError)
-        return { success: false, error: 'Failed to check category usage' }
-      }
+      const result = await response.json()
 
-      if (products && products.length > 0) {
-        return { success: false, error: 'Cannot delete category that is being used by products' }
-      }
-
-      // Soft delete by setting is_active to false
-      const { error } = await this.supabase
-        .from('categories')
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-
-      if (error) {
-        console.error('Error deleting category:', error)
-        return { success: false, error: error.message }
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Failed to delete category' }
       }
 
       return { success: true }
@@ -266,7 +222,7 @@ export class CategoryService {
       console.error('CategoryService.deleteCategory error:', error)
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: error instanceof Error ? error.message : 'Failed to delete category'
       }
     }
   }
@@ -278,7 +234,6 @@ export class CategoryService {
       const { data: categories, error: categoryError } = await this.supabase
         .from('categories')
         .select('*')
-        .eq('is_active', true)
         .order('name', { ascending: true })
 
       if (categoryError) {
@@ -302,10 +257,9 @@ export class CategoryService {
       const categoriesWithCount = await Promise.all(
         categories.map(async (category: any) => {
           const { count, error: countError } = await this.supabase
-            .from('profiles')
-            .select('id', { count: 'exact' })
+            .from('products')
+            .select('id', { count: 'exact', head: true })
             .eq('category_id', category.id)
-            .eq('is_active', true)
 
           if (countError) {
             console.error(`Error counting products for category ${category.id}:`, countError)
