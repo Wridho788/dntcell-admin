@@ -162,6 +162,61 @@ export async function sendAdminNotification(
 }
 
 /**
+ * Send notification to user by user ID
+ * Fetches player ID from database first
+ */
+export async function sendUserNotification(
+  userId: string,
+  title: string,
+  message: string,
+  data?: Record<string, any>,
+  url?: string
+): Promise<SendNotificationResult> {
+  try {
+    // Import supabase client
+    const { supabaseAdmin } = await import('@/api/_core/supabase-server')
+
+    // Get user's player ID from database
+    const { data: profile, error } = await supabaseAdmin
+      .from('profiles')
+      .select('onesignal_player_id')
+      .eq('user_id', userId)
+      .single()
+
+    if (error || !profile) {
+      console.error('[OneSignal] User not found:', userId)
+      return {
+        success: false,
+        error: 'User not found',
+      }
+    }
+
+    if (!profile.onesignal_player_id) {
+      console.warn('[OneSignal] User has no player ID:', userId)
+      return {
+        success: false,
+        error: 'User has not enabled push notifications',
+      }
+    }
+
+    // Send notification
+    return sendPushNotification({
+      playerIds: [profile.onesignal_player_id],
+      title,
+      message,
+      data,
+      url,
+    })
+  } catch (error) {
+    console.error('[OneSignal] sendUserNotification error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
  * Send notification to multiple admins
  */
 export async function sendBulkAdminNotification(

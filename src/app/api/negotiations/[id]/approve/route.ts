@@ -6,6 +6,7 @@ import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
 import { createPricingSnapshot } from '@/lib/services/pricing-service'
 import { canApprove } from '@/lib/utils/negotiation-state-machine'
+import { sendUserNotification } from '@/lib/onesignal'
 
 // POST /api/negotiations/[id]/approve - Approve negotiation (SYSTEM PRICE ONLY)
 // Admin can only approve or reject - system determines the final price
@@ -107,7 +108,18 @@ export async function POST(
       },
     })
 
-    // TODO: Trigger OneSignal notification to buyer
+    // Send OneSignal push notification to buyer
+    try {
+      await sendUserNotification(
+        negotiation.buyer_id,
+        'Negotiation Approved! 🎉',
+        `Your offer for ${product.name} has been approved at Rp ${finalPrice.toLocaleString('id-ID')}`,
+        { negotiation_id: params.id, type: 'negotiation_approved' }
+      )
+    } catch (notifError) {
+      console.error('Failed to send OneSignal notification:', notifError)
+      // Don't fail the request if notification fails
+    }
 
     return successResponse(
       { 

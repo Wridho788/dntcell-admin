@@ -10,6 +10,7 @@ import {
   createPricingSnapshot 
 } from '@/lib/services/pricing-service'
 import { canCounter } from '@/lib/utils/negotiation-state-machine'
+import { sendUserNotification } from '@/lib/onesignal'
 
 // POST /api/negotiations/[id]/counter - System generates counter offer
 export async function POST(

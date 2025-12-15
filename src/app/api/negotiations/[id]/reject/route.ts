@@ -7,6 +7,7 @@ import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
 import { canReject } from '@/lib/utils/negotiation-state-machine'
+import { sendUserNotification } from '@/lib/onesignal'
 
 // POST /api/negotiations/[id]/reject - Reject negotiation
 const rejectSchema = z.object({
@@ -98,7 +99,22 @@ export async function POST(
       },
     })
 
-    // TODO: Trigger OneSignal notification to buyer
+    // Send OneSignal push notification to buyer
+    try {
+      const message = validation.data.note 
+        ? `Your offer for ${product.name} has been rejected: ${validation.data.note}`
+        : `Your offer for ${product.name} has been rejected`
+      
+      await sendUserNotification(
+        negotiation.buyer_id,
+        'Negotiation Rejected ❌',
+        message,
+        { negotiation_id: params.id, type: 'negotiation_rejected' }
+      )
+    } catch (notifError) {
+      console.error('Failed to send OneSignal notification:', notifError)
+      // Don't fail the request if notification fails
+    }
 
     return successResponse(updated, 'Negotiation rejected')
   } catch (error) {
