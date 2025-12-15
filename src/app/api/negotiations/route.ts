@@ -6,7 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_cor
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { sendBulkAdminNotification } from '@/lib/onesignal'
-import { validateNegotiationOffer, createPricingSnapshot } from '@/lib/services/pricing-service'
+import { validateNegotiationOffer } from '@/lib/services/pricing-service'
 
 // GET /api/negotiations - List negotiations
 export async function GET(request: NextRequest) {
@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     
     const productId = searchParams.get('product_id')
-    const status = searchParams.get('status')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
@@ -29,7 +28,6 @@ export async function GET(request: NextRequest) {
     id,
     offer_price,
     final_price,
-    status,
     note,
     created_at,
 
@@ -54,9 +52,9 @@ export async function GET(request: NextRequest) {
 )
 
     // Filter by user role
-    if (!auth.isAdmin) {
-      query = query.eq('user_id', auth.userId)
-    }
+    // if (!auth.isAdmin) {
+    //   query = query.eq('user_id', auth.userId)
+    // }
 
     if (productId) {
       query = query.eq('product_id', productId)
