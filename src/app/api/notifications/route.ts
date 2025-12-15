@@ -5,6 +5,7 @@ import { requireAuth } from '@/api/_core/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_core/response'
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
+import { logActivity } from '@/api/_core/activity-logger'
 
 // GET /api/notifications - List user notifications
 export async function GET(request: NextRequest) {
@@ -22,11 +23,11 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('notifications')
-      .select('*', { count: 'exact' })
+      .select('id, user_id, type, title, message, data, read_at, created_at', { count: 'exact' })
       .eq('user_id', auth.userId)
 
     if (unreadOnly) {
-      query = query.eq('read', false)
+      query = query.is('read_at', null)
     }
 
     // Pagination
@@ -59,8 +60,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/notifications/send - Send notification (admin only)
 const sendNotificationSchema = z.object({
-  user_id: z.string().uuid(),
-  type: z.enum(['new_negotiation', 'negotiation_approved', 'negotiation_rejected', 'new_order', 'order_status_updated', 'system_message']),
+  user_ids: z.array(z.string().uuid()).min(1, 'At least one user ID is required'),
+  type: z.enum(['new_negotiation', 'negotiation_approved', 'negotiation_rejected', 'negotiation_countered', 'new_order', 'order_status_updated', 'system_message']),
   title: z.string().min(1),
   message: z.string().min(1),
   data: z.record(z.string(), z.any()).optional(),
@@ -82,20 +83,49 @@ export async function POST(request: NextRequest) {
       return errorResponse(validation.error, 422)
     }
 
-    // Insert notification
-    const { data: notification, error: insertError } = await supabaseAdmin
+    const { user_ids, type, title, message, data } = validation.data
+
+    // Prepare bulk insert payload
+    const payload = user_ids.map(userId => ({
+      user_id: userId,
+      type,
+      title,
+      message,
+      data: data || {},
+    }))
+
+    // Insert notifications in bulk
+    const { data: notifications, error: insertError } = await supabaseAdmin
       .from('notifications')
-      .insert(validation.data)
+      .insert(payload)
       .select()
-      .single()
 
     if (insertError) {
       return errorResponse(insertError.message)
     }
 
-    // TODO: Trigger OneSignal push notification
+    // Log activity for audit trail
+    await logActivity({
+      admin_id: auth.userId,
+      action: 'SEND_NOTIFICATION',
+      meta: {
+        type,
+        title,
+        recipient_count: user_ids.length,
+        user_ids: user_ids,
+      },
+    })
 
-    return successResponse(notification, 'Notification sent successfully', 201)
+    // TODO: Trigger OneSignal push notification to all users
+
+    return successResponse(
+      {
+        notifications,
+        sent_count: notifications?.length || 0,
+      },
+      `${notifications?.length || 0} notification(s) sent successfully`,
+      201
+    )
   } catch (error) {
     return handleApiError(error)
   }
