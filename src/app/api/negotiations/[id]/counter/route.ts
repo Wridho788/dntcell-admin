@@ -57,9 +57,8 @@ export async function POST(
       return errorResponse(`Cannot counter negotiation from status: ${negotiation.status}`, 400)
     }
 
-    // TODO: Add counter_attempt field to negotiations table for proper tracking
-    // For now, count based on counter_price existence
-    const currentAttempts = negotiation.counter_price ? 1 : 0
+    // Get current counter attempt from database field
+    const currentAttempts = negotiation.counter_attempt || 0
 
     // Validate negotiation attempt count
     const attemptValidation = await validateNegotiationAttempt(
@@ -84,6 +83,7 @@ export async function POST(
       .update({
         status: 'countered',
         counter_price: counterPrice,
+        counter_attempt: currentAttempts + 1,
         admin_id: auth.userId,
         updated_at: new Date().toISOString(),
       })
