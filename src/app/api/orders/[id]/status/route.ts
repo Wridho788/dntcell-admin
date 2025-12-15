@@ -6,11 +6,11 @@ import { successResponse, errorResponse, notFoundResponse } from '@/api/_core/re
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
-import { sendAdminNotification } from '@/lib/onesignal'
+import { sendUserNotification } from '@/lib/onesignal'
 
-// PUT /api/orders/[id]/status - Update order status
+// PUT /api/orders/[id]/status - Update order status (Admin only)
 const updateStatusSchema = z.object({
-  status: z.enum(['pending', 'processing', 'completed', 'canceled']),
+  order_status: z.enum(['pending', 'processing', 'completed', 'canceled']),
   admin_note: z.string().optional(),
 })
 
@@ -36,7 +36,7 @@ export async function PUT(
       .select(`
         *,
         product:products(id, name),
-        buyer:profiles(user_id, onesignal_player_id)
+        buyer:profiles!orders_buyer_id_fkey(user_id, full_name, email, onesignal_player_id)
       `)
       .eq('id', params.id)
       .single()
@@ -49,7 +49,7 @@ export async function PUT(
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
-        status: validation.data.status,
+        order_status: validation.data.order_status,
         admin_note: validation.data.admin_note,
         updated_at: new Date().toISOString(),
       })
@@ -75,10 +75,10 @@ export async function PUT(
         user_id: order.buyer_id,
         type: 'order_status_updated',
         title: 'Order Status Updated',
-        message: statusMessages[validation.data.status] || 'Your order status has been updated',
+        message: statusMessages[validation.data.order_status] || 'Your order status has been updated',
         data: { 
           order_id: params.id,
-          status: validation.data.status,
+          order_status: validation.data.order_status,
           note: validation.data.admin_note,
         },
       })
@@ -89,20 +89,21 @@ export async function PUT(
       action: 'UPDATE_ORDER_STATUS',
       meta: { 
         order_id: params.id,
-        from_status: order.status,
-        to_status: validation.data.status,
+        from_status: order.order_status,
+        to_status: validation.data.order_status,
+        admin_note: validation.data.admin_note,
       },
     })
 
-    // Send push notification to buyer
+    // Send push notification to buyer (user notification, not admin)
     if (order.buyer.onesignal_player_id) {
-      sendAdminNotification(
+      sendUserNotification(
         order.buyer_id,
-        'Order Status Updated',
-        statusMessages[validation.data.status] || 'Your order status has been updated',
+        'Order Status Updated 📦',
+        statusMessages[validation.data.order_status] || 'Your order status has been updated',
         {
           order_id: params.id,
-          status: validation.data.status,
+          order_status: validation.data.order_status,
           product_name: order.product.name,
         },
         `${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.id}`

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         product:products(id, name, main_image_url),
-        buyer:profiles(user_id, full_name, email),
+        buyer:profiles!orders_buyer_id_fkey(user_id, full_name, email),
         negotiation:negotiations(id, offer_price, final_price)
       `, { count: 'exact' })
 
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
         payment_method: orderData.payment_method,
         shipping_address: orderData.shipping_address,
         note: orderData.note,
-        status: 'pending',
+        order_status: 'pending',
       })
       .select()
       .single()
@@ -171,14 +171,15 @@ export async function POST(request: NextRequest) {
         data: { order_id: order.id },
       })
 
-    // Log activity
+    // Log activity - USER action, not admin
     await logActivity({
       admin_id: auth.userId,
-      action: 'CREATE_ORDER',
+      action: 'USER_CREATE_ORDER',
       meta: { 
         order_id: order.id,
         product_id,
         price: finalPrice,
+        buyer_id: auth.userId,
       },
     })
 

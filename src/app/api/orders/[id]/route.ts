@@ -1,60 +1,47 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createServerSupabaseClient, getCurrentUser, isUserAdmin } from "@/lib/supabase/server"
+import { NextRequest } from 'next/server'
+import { supabaseAdmin } from '@/api/_core/supabase-server'
+import { requireAuth } from '@/api/_core/auth'
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/api/_core/response'
+import { handleApiError } from '@/api/_core/error'
 
+// GET /api/orders/[id] - Get order details
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      )
+    const auth = await requireAuth(request)
+    if (!auth) {
+      return unauthorizedResponse()
     }
 
-    const hasAdminAccess = await isUserAdmin(user.id)
-    if (!hasAdminAccess) {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      )
-    }
-
-    const supabase = await createServerSupabaseClient()
-
-    const { data: order, error } = await supabase
-      .from("orders")
+    // Get order with explicit FK references
+    const { data: order, error } = await supabaseAdmin
+      .from('orders')
       .select(`
         *,
         product:products(id, name, main_image_url, base_price, selling_price, condition),
-        buyer:users!orders_buyer_id_fkey(id, email),
-        negotiation:negotiations(id, offer_price, status, note)
+        buyer:profiles!orders_buyer_id_fkey(user_id, full_name, email),
+        negotiation:negotiations(id, offer_price, final_price, status, note)
       `)
-      .eq("id", params.id)
+      .eq('id', params.id)
       .single()
 
     if (error) {
-      return NextResponse.json(
-        { error: `Failed to fetch order: ${error.message}` },
-        { status: 500 }
-      )
+      return errorResponse(error.message)
     }
 
     if (!order) {
-      return NextResponse.json(
-        { error: "Order not found" },
-        { status: 404 }
-      )
+      return notFoundResponse('Order not found')
     }
 
-    return NextResponse.json({ order })
-  } catch (error: any) {
-    console.error("Error fetching order:", error)
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    )
+    // Authorization check: non-admin users can only see their own orders
+    if (!auth.isAdmin && order.buyer_id !== auth.userId) {
+      return errorResponse('You can only view your own orders', 403)
+    }
+
+    return successResponse(order)
+  } catch (error) {
+    return handleApiError(error)
   }
 }
