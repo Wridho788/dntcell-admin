@@ -24,16 +24,38 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
 
     let query = supabaseAdmin
-      .from('negotiations')
-      .select(`
-        *,
-        product:products(id, name, selling_price, main_image_url),
-        buyer:profiles!negotiations_buyer_id_fkey(user_id, full_name, email)
-      `, { count: 'exact' })
+  .from('negotiations')
+  .select(`
+    id,
+    offer_price,
+    final_price,
+    status,
+    note,
+    created_at,
+
+    product:products (
+      id,
+      name,
+      selling_price,
+      main_image_url
+    ),
+
+    buyer:profiles!negotiations_user_fk (
+      id,
+      email
+    ),
+
+    admin:profiles!negotiations_admin_fk (
+      id,
+      email
+    )
+  `,
+  { count: 'exact' }
+)
 
     // Filter by user role
     if (!auth.isAdmin) {
-      query = query.eq('buyer_id', auth.userId)
+      query = query.eq('user_id', auth.userId)
     }
 
     if (productId) {
