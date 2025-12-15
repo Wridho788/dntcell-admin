@@ -74,9 +74,20 @@ export function OneSignalClient({ adminId }: OneSignalClientProps) {
         console.log("[OneSignal] Initialized successfully")
         setIsInitialized(true)
 
-        // Request notification permission
-        const permission = await window.OneSignal.Notifications.requestPermission()
-        console.log("[OneSignal] Permission status:", permission)
+        // Request notification permission (handle dismissal gracefully)
+        try {
+          const permission = await window.OneSignal.Notifications.requestPermission()
+          console.log("[OneSignal] Permission status:", permission)
+        } catch (permError: any) {
+          // User dismissed the permission prompt
+          if (permError?.message?.includes('dismissed')) {
+            console.log('[OneSignal] User dismissed notification permission')
+          } else {
+            console.warn('[OneSignal] Permission request failed:', permError)
+          }
+          // Don't throw - continue without notifications
+          return
+        }
 
         // Listen for subscription changes
         window.OneSignal.User.PushSubscription.addEventListener("change", async (event: any) => {

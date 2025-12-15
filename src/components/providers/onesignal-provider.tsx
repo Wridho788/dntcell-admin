@@ -13,9 +13,20 @@ export function OneSignalProvider() {
           allowLocalhostAsSecureOrigin: true,
         })
 
-        // Request notification permission
-        const permission = await OneSignal.Notifications.requestPermission()
-        console.log('OneSignal permission:', permission)
+        // Request notification permission (handle dismissal gracefully)
+        try {
+          const permission = await OneSignal.Notifications.requestPermission()
+          console.log('OneSignal permission:', permission)
+        } catch (permError: any) {
+          // User dismissed the permission prompt
+          if (permError?.message?.includes('dismissed')) {
+            console.log('OneSignal: User dismissed notification permission')
+          } else {
+            console.warn('OneSignal: Permission request failed:', permError)
+          }
+          // Don't throw - continue without notifications
+          return
+        }
 
         // Get player ID after initialization
         const playerId = await OneSignal.User.PushSubscription.id
