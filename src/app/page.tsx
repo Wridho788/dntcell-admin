@@ -72,7 +72,7 @@ export default async function Home() {
         </div>
 
         {/* Admin Access Card */}
-        <Card className="max-w-md mx-auto">
+        {/* <Card className="max-w-md mx-auto">
           <CardHeader className="text-center">
             <CardTitle>Administrator Access</CardTitle>
             <CardDescription>
@@ -86,7 +86,7 @@ export default async function Home() {
               </Link>
             </Button>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   )

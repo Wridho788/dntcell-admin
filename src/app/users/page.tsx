@@ -58,7 +58,7 @@ export default async function UsersPage() {
   const profiles = await getProfiles()
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 mx-4">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Users</h1>

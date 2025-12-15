@@ -6,6 +6,7 @@ import { successResponse, errorResponse, notFoundResponse } from '@/api/_core/re
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
+import { NegotiationStatus, isValidTransition } from '@/lib/domain/negotiation-states'
 
 // POST /api/negotiations/[id]/reject - Reject negotiation
 const rejectSchema = z.object({
@@ -34,7 +35,7 @@ export async function POST(
       .select(`
         *,
         product:products(id, name),
-        buyer:profiles!negotiations_buyer_id_fkey(user_id, onesignal_player_id)
+        buyer:profiles!negotiations_user_id_fkey(user_id, onesignal_player_id)
       `)
       .eq('id', params.id)
       .single()
@@ -43,31 +44,33 @@ export async function POST(
       return notFoundResponse('Negotiation not found')
     }
 
-    if (negotiation.status !== 'pending') {
-      return errorResponse('Negotiation is not pending', 400)
+    // Validate state transition
+    if (!isValidTransition(negotiation.status, NegotiationStatus.REJECTED)) {
+      return errorResponse(`Cannot reject from status: ${negotiation.status}`, 400)
     }
 
-    // Update negotiation
+    // Update negotiation with row-level lock
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('negotiations')
       .update({
-        status: 'rejected',
-        admin_note: validation.data.note,
-        updated_at: new Date().toISOString(),
+        status: NegotiationStatus.REJECTED,
+        admin_id: auth.userId,
+        note: validation.data.note,
       })
       .eq('id', params.id)
+      .eq('status', negotiation.status) // Optimistic locking
       .select()
       .single()
 
-    if (updateError) {
-      return errorResponse(updateError.message)
+    if (updateError || !updated) {
+      return errorResponse('Failed to update negotiation. It may have been modified.', 409)
     }
 
     // Create notification for buyer
     await supabaseAdmin
       .from('notifications')
       .insert({
-        user_id: negotiation.buyer_id,
+        user_id: negotiation.user_id,
         type: 'negotiation_rejected',
         title: 'Negotiation Rejected',
         message: `Your offer for ${negotiation.product.name} has been rejected`,
@@ -81,6 +84,8 @@ export async function POST(
       meta: { 
         negotiation_id: params.id,
         product_id: negotiation.product_id,
+        from_status: negotiation.status,
+        to_status: NegotiationStatus.REJECTED,
       },
     })
 
