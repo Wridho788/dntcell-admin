@@ -1,19 +1,28 @@
-"use client"
+"use client";
 
-import { OneSignalSettings } from "@/components/settings/onesignal-settings"
+import { AdminLayout } from "@/components/layout";
+import { ProfileSettings } from "@/components/settings/profile-settings";
+import { ChangePasswordSettings } from "@/components/settings/change-password-settings";
 
 export function SettingsClient() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage system configuration and preferences
-        </p>
-      </div>
+    <AdminLayout>
+      <div className="page-container">
+        <div className="page-header">
+          <h1 className="page-title">Pengaturan</h1>
+          <p className="page-description">
+            Kelola profil dan preferensi akun Anda
+          </p>
+        </div>
 
-      {/* OneSignal Configuration */}
-      <OneSignalSettings />
-    </div>
-  )
+        <div className="space-y-6">
+          {/* Profile Settings */}
+          <ProfileSettings />
+
+          {/* Change Password */}
+          <ChangePasswordSettings />
+        </div>
+      </div>
+    </AdminLayout>
+  );
 }
