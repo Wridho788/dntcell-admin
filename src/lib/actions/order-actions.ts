@@ -226,7 +226,7 @@ export async function searchOrders(
         `
         *,
         product:products(id, name, main_image_url, base_price, selling_price, condition),
-        buyer:users!orders_buyer_id_fkey(id, email, full_name),
+        buyer:users!orders_buyer_id_fkey(id, email),
         negotiation:negotiations(id, offer_price, status)
       `,
         { count: "exact" }
@@ -300,7 +300,7 @@ export async function getOrderById(
         `
         *,
         product:products(id, name, main_image_url, base_price, selling_price, condition),
-        buyer:users!orders_buyer_id_fkey(id, email, full_name),
+        buyer:users!orders_buyer_id_fkey(id, email),
         negotiation:negotiations(id, offer_price, status)
       `
       )
