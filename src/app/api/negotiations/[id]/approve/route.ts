@@ -6,7 +6,7 @@ import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
 import { createPricingSnapshot } from '@/lib/services/pricing-service'
 import { canApprove } from '@/lib/utils/negotiation-state-machine'
-import { sendUserNotification } from '@/lib/onesignal'
+import { sendUserNotification } from '@/lib/notifications/notification-helper'
 
 // POST /api/negotiations/[id]/approve - Approve negotiation (SYSTEM PRICE ONLY)
 // Admin can only approve or reject - system determines the final price
@@ -71,15 +71,18 @@ export async function POST(
       return errorResponse('Failed to approve negotiation. It may have been modified.', 409)
     }
 
-    // Create notification for buyer
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: negotiation.buyer_id,
+    // Send notification to buyer (DB + Push)
+    await sendUserNotification({
+      userId: negotiation.buyer_id,
+      type: 'negotiation_approved',
+      title: 'Negotiation Approved! 🎉',
+      message: `Your offer for ${product.name} has been approved at Rp ${finalPrice.toLocaleString('id-ID')}`,
+      data: { 
+        negotiation_id: params.id, 
         type: 'negotiation_approved',
-        title: 'Negotiation Approved',
-        message: `Your offer for ${product.name} has been approved at Rp ${finalPrice.toLocaleString('id-ID')}`,
-      })
+        final_price: finalPrice,
+      },
+    })
 
     // Create pricing snapshot for audit
     const pricingSnapshot = createPricingSnapshot(
@@ -107,19 +110,6 @@ export async function POST(
         note: 'Admin approved system-determined price',
       },
     })
-
-    // Send OneSignal push notification to buyer
-    try {
-      await sendUserNotification(
-        negotiation.buyer_id,
-        'Negotiation Approved! 🎉',
-        `Your offer for ${product.name} has been approved at Rp ${finalPrice.toLocaleString('id-ID')}`,
-        { negotiation_id: params.id, type: 'negotiation_approved' }
-      )
-    } catch (notifError) {
-      console.error('Failed to send OneSignal notification:', notifError)
-      // Don't fail the request if notification fails
-    }
 
     return successResponse(
       { 

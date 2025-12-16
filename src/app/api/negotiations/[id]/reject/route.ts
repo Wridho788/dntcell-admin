@@ -7,7 +7,7 @@ import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
 import { canReject } from '@/lib/utils/negotiation-state-machine'
-import { sendUserNotification } from '@/lib/onesignal'
+import { sendUserNotification } from '@/lib/notifications/notification-helper'
 
 // POST /api/negotiations/[id]/reject - Reject negotiation
 const rejectSchema = z.object({
@@ -75,15 +75,22 @@ export async function POST(
       return errorResponse('Failed to update negotiation. It may have been modified.', 409)
     }
 
-    // Create notification for buyer
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: negotiation.buyer_id,
+    // Send notification to buyer (DB + Push)
+    const message = validation.data.note 
+      ? `Your offer for ${product.name} has been rejected: ${validation.data.note}`
+      : `Your offer for ${product.name} has been rejected`
+    
+    await sendUserNotification({
+      userId: negotiation.buyer_id,
+      type: 'negotiation_rejected',
+      title: 'Negotiation Rejected ❌',
+      message,
+      data: { 
+        negotiation_id: params.id, 
         type: 'negotiation_rejected',
-        title: 'Negotiation Rejected',
-        message: `Your offer for ${product.name} has been rejected${validation.data.note ? ': ' + validation.data.note : ''}`,
-      })
+        note: validation.data.note,
+      },
+    })
 
     // Log activity
     await logActivity({
@@ -98,23 +105,6 @@ export async function POST(
         note: validation.data.note,
       },
     })
-
-    // Send OneSignal push notification to buyer
-    try {
-      const message = validation.data.note 
-        ? `Your offer for ${product.name} has been rejected: ${validation.data.note}`
-        : `Your offer for ${product.name} has been rejected`
-      
-      await sendUserNotification(
-        negotiation.buyer_id,
-        'Negotiation Rejected ❌',
-        message,
-        { negotiation_id: params.id, type: 'negotiation_rejected' }
-      )
-    } catch (notifError) {
-      console.error('Failed to send OneSignal notification:', notifError)
-      // Don't fail the request if notification fails
-    }
 
     return successResponse(updated, 'Negotiation rejected')
   } catch (error) {

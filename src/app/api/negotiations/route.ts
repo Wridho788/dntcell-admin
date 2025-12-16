@@ -5,8 +5,8 @@ import { requireAuth } from '@/api/_core/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_core/response'
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
-import { sendBulkAdminNotification } from '@/lib/onesignal'
 import { validateNegotiationOffer } from '@/lib/services/pricing-service'
+import { sendAdminNotification } from '@/lib/notifications/notification-helper'
 
 // GET /api/negotiations - List negotiations
 export async function GET(request: NextRequest) {
@@ -165,30 +165,18 @@ export async function POST(request: NextRequest) {
       return errorResponse(insertError.message)
     }
 
-    // Create notification for admin
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: product.seller_id,
-        type: 'new_negotiation',
-        title: 'New Price Negotiation',
-        message: `New offer for ${product.name}: Rp ${validation.data.offer_price.toLocaleString('id-ID')}`,
-        // Note: data field should be JSONB in schema
-      })
-
-    // Send push notification to all admins
-    sendBulkAdminNotification(
-      'New Price Negotiation',
-      `New offer for ${product.name}: Rp ${validation.data.offer_price.toLocaleString()}`,
-      { 
+    // Send notification to all admins (DB + Push)
+    await sendAdminNotification({
+      type: 'new_negotiation',
+      title: 'New Price Negotiation',
+      message: `New offer for ${product.name}: Rp ${validation.data.offer_price.toLocaleString('id-ID')}`,
+      data: { 
         negotiation_id: negotiation.id,
         product_id: product.id,
         product_name: product.name,
         offer_price: validation.data.offer_price,
       },
-      `${process.env.NEXT_PUBLIC_APP_URL}/negotiations`
-    ).catch((error) => {
-      console.error('[Negotiation] Failed to send push notification:', error)
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/negotiations`,
     })
 
     return successResponse(negotiation, 'Negotiation created successfully', 201)

@@ -6,7 +6,7 @@ import { successResponse, errorResponse, notFoundResponse } from '@/api/_core/re
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
-import { sendUserNotification } from '@/lib/onesignal'
+import { sendUserNotification } from '@/lib/notifications/notification-helper'
 
 // PUT /api/orders/[id]/status - Update order status (Admin only)
 const updateStatusSchema = z.object({
@@ -61,7 +61,7 @@ export async function PUT(
       return errorResponse(updateError.message)
     }
 
-    // Create notification for buyer
+    // Send notification to buyer (DB + Push)
     const statusMessages: Record<string, string> = {
       pending: 'Your order is pending confirmation',
       processing: 'Your order is being processed',
@@ -69,19 +69,19 @@ export async function PUT(
       canceled: 'Your order has been canceled',
     }
 
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: order.buyer_id,
-        type: 'order_status_updated',
-        title: 'Order Status Updated',
-        message: statusMessages[validation.data.order_status] || 'Your order status has been updated',
-        data: { 
-          order_id: params.id,
-          order_status: validation.data.order_status,
-          note: validation.data.admin_note,
-        },
-      })
+    await sendUserNotification({
+      userId: order.buyer_id,
+      type: 'order_status_updated',
+      title: 'Order Status Updated 📦',
+      message: statusMessages[validation.data.order_status] || 'Your order status has been updated',
+      data: { 
+        order_id: params.id,
+        order_status: validation.data.order_status,
+        product_name: order.product.name,
+        note: validation.data.admin_note,
+      },
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.id}`,
+    })
 
     // Log activity
     await logActivity({
@@ -94,23 +94,6 @@ export async function PUT(
         admin_note: validation.data.admin_note,
       },
     })
-
-    // Send push notification to buyer (user notification, not admin)
-    if (order.buyer.onesignal_player_id) {
-      sendUserNotification(
-        order.buyer_id,
-        'Order Status Updated 📦',
-        statusMessages[validation.data.order_status] || 'Your order status has been updated',
-        {
-          order_id: params.id,
-          order_status: validation.data.order_status,
-          product_name: order.product.name,
-        },
-        `${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.id}`
-      ).catch((error) => {
-        console.error('[Order Status] Failed to send push notification:', error)
-      })
-    }
 
     return successResponse(updated, 'Order status updated successfully')
   } catch (error) {

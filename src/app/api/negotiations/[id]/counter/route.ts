@@ -10,7 +10,7 @@ import {
   createPricingSnapshot 
 } from '@/lib/services/pricing-service'
 import { canCounter } from '@/lib/utils/negotiation-state-machine'
-import { sendUserNotification } from '@/lib/onesignal'
+import { sendUserNotification } from '@/lib/notifications/notification-helper'
 
 // POST /api/negotiations/[id]/counter - System generates counter offer
 export async function POST(
@@ -95,15 +95,19 @@ export async function POST(
       return errorResponse(updateError.message)
     }
 
-    // Create notification for buyer
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: negotiation.buyer_id,
+    // Send notification to buyer (DB + Push)
+    await sendUserNotification({
+      userId: negotiation.buyer_id,
+      type: 'negotiation_countered',
+      title: 'Counter Offer Received',
+      message: `Admin countered your offer for ${product.name} with Rp ${counterPrice.toLocaleString('id-ID')}`,
+      data: {
+        negotiation_id: params.id,
         type: 'negotiation_countered',
-        title: 'Counter Offer Received',
-        message: `Admin countered your offer for ${product.name} with Rp ${counterPrice.toLocaleString('id-ID')}`,
-      })
+        counter_price: counterPrice,
+        counter_attempt: currentAttempts + 1,
+      },
+    })
 
     // Create pricing snapshot for audit
     const pricingSnapshot = createPricingSnapshot(

@@ -6,7 +6,7 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/api/_cor
 import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
-import { sendBulkAdminNotification } from '@/lib/onesignal'
+import { sendAdminNotification } from '@/lib/notifications/notification-helper'
 
 // GET /api/orders - List orders
 export async function GET(request: NextRequest) {
@@ -161,16 +161,20 @@ export async function POST(request: NextRequest) {
       return errorResponse(orderError.message)
     }
 
-    // Create notification for seller/admin
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: product.seller_id,
-        type: 'new_order',
-        title: 'New Order Received',
-        message: `New order for ${product.name}`,
-        data: { order_id: order.id },
-      })
+    // Send notification to all admins (DB + Push)
+    await sendAdminNotification({
+      type: 'new_order',
+      title: 'New Order Received',
+      message: `New order for ${product.name} - Rp ${finalPrice.toLocaleString('id-ID')}`,
+      data: { 
+        order_id: order.id,
+        product_id,
+        product_name: product.name,
+        price: finalPrice,
+        payment_method: orderData.payment_method,
+      },
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/orders`,
+    })
 
     // Log activity - USER action, not admin
     await logActivity({
@@ -182,22 +186,6 @@ export async function POST(request: NextRequest) {
         price: finalPrice,
         buyer_id: auth.userId,
       },
-    })
-
-    // Send push notification to all admins
-    sendBulkAdminNotification(
-      'New Order Received',
-      `New order for ${product.name} - Rp ${finalPrice.toLocaleString()}`,
-      {
-        order_id: order.id,
-        product_id,
-        product_name: product.name,
-        price: finalPrice,
-        payment_method: orderData.payment_method,
-      },
-      `${process.env.NEXT_PUBLIC_APP_URL}/orders`
-    ).catch((error) => {
-      console.error('[Order] Failed to send push notification:', error)
     })
 
     return successResponse(order, 'Order created successfully', 201)
