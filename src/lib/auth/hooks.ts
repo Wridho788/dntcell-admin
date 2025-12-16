@@ -16,37 +16,64 @@ export function useAuth() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
+    // Safety timeout: force loading to false after 10 seconds to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[useAuth] Loading timeout - forcing loading to false')
+        setLoading(false)
+      }
+    }, 10000)
+
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        // Check cache first
-        const cached = adminCache.get(session.user.id)
-        const now = Date.now()
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
-        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-          setIsAdmin(cached.isAdmin)
+        if (sessionError) {
+          console.error('[useAuth] Session error:', sessionError)
           setLoading(false)
           return
         }
         
-        // Check admin status from database
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
+        setUser(session?.user ?? null)
         
-        const adminStatus = profile?.role === 'admin' || profile?.role === 'super_admin'
-        setIsAdmin(adminStatus)
+        if (session?.user) {
+          // Check cache first
+          const cached = adminCache.get(session.user.id)
+          const now = Date.now()
+          
+          if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+            setIsAdmin(cached.isAdmin)
+            setLoading(false)
+            return
+          }
+          
+          // Check admin status from database
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+          
+          if (profileError) {
+            console.error('[useAuth] Profile fetch error:', profileError)
+            setIsAdmin(false)
+            setLoading(false)
+            return
+          }
+          
+          const adminStatus = profile?.role === 'admin' || profile?.role === 'super_admin'
+          setIsAdmin(adminStatus)
+          
+          // Update cache
+          adminCache.set(session.user.id, { isAdmin: adminStatus, timestamp: now })
+        }
         
-        // Update cache
-        adminCache.set(session.user.id, { isAdmin: adminStatus, timestamp: now })
+        setLoading(false)
+      } catch (error) {
+        console.error('[useAuth] Unexpected error:', error)
+        setLoading(false)
       }
-      
-      setLoading(false)
     }
 
     getInitialSession()
@@ -55,37 +82,50 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        // Check cache first
-        const cached = adminCache.get(session.user.id)
-        const now = Date.now()
+      try {
+        setUser(session?.user ?? null)
         
-        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-          setIsAdmin(cached.isAdmin)
+        if (session?.user) {
+          // Check cache first
+          const cached = adminCache.get(session.user.id)
+          const now = Date.now()
+          
+          if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+            setIsAdmin(cached.isAdmin)
+          } else {
+            // Check admin status from database
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .maybeSingle()
+            
+            if (profileError) {
+              console.error('[useAuth] Profile fetch error on auth change:', profileError)
+              setIsAdmin(false)
+            } else {
+              const adminStatus = profile?.role === 'admin' || profile?.role === 'super_admin'
+              setIsAdmin(adminStatus)
+              
+              // Update cache
+              adminCache.set(session.user.id, { isAdmin: adminStatus, timestamp: now })
+            }
+          }
         } else {
-          // Check admin status from database
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .maybeSingle()
-          
-          const adminStatus = profile?.role === 'admin' || profile?.role === 'super_admin'
-          setIsAdmin(adminStatus)
-          
-          // Update cache
-          adminCache.set(session.user.id, { isAdmin: adminStatus, timestamp: now })
+          setIsAdmin(false)
         }
-      } else {
-        setIsAdmin(false)
+        
+        setLoading(false)
+      } catch (error) {
+        console.error('[useAuth] Error in auth state change:', error)
+        setLoading(false)
       }
-      
-      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { user, loading, isAdmin }

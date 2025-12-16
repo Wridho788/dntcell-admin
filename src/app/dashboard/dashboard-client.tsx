@@ -33,7 +33,7 @@ const stats = [
 
 export function DashboardClient() {
   return (
-    <AdminLayout>
+    <AdminLayout requireAuth={false}>
       <div className="page-container">
         {/* Header */}
         <div className="page-header">
