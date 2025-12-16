@@ -1,21 +1,20 @@
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/supabase/server'
-import { UsersClient } from './users-client'
+import { NotificationsClient } from './notifications-client'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'User Management',
-  description: 'Manage system users and their permissions',
+  title: 'Notifications',
+  description: 'View and manage your notifications',
 }
 
-export default async function UsersPage() {
-  // Check authentication
+export default async function NotificationsPage() {
   const user = await getCurrentUser()
   if (!user) {
     redirect('/login')
   }
 
-  return <UsersClient />
+  return <NotificationsClient />
 }

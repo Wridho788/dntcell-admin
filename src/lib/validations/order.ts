@@ -95,6 +95,7 @@ export const orderSearchSchema = z.object({
   payment_status: z.enum(paymentStatuses).optional(),
   order_status: z.enum(orderStatuses).optional(),
   payment_method: z.enum(paymentMethods).optional(),
+  search: z.string().optional(),
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().max(100).default(20),
   sort_by: z.enum(['created_at', 'final_price', 'order_status', 'payment_status']).default('created_at'),

@@ -44,6 +44,7 @@ export interface OrderFilters {
   buyer_id?: string;
   seller_id?: string;
   status?: 'pending' | 'processing' | 'completed' | 'cancelled';
+  search?: string;
   page?: number;
   limit?: number;
 }

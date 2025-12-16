@@ -187,8 +187,13 @@ export class ApiClient {
   // Orders
   async getOrders(params?: {
     order_status?: string
+    payment_status?: string
+    payment_method?: string
+    search?: string
     page?: number
     limit?: number
+    sort_by?: string
+    sort_order?: string
   }) {
     const queryParams = new URLSearchParams()
     if (params) {

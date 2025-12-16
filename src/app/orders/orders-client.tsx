@@ -34,8 +34,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoadingCard } from "@/components/ui/loading";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Eye, Package, DollarSign } from "lucide-react";
+import { Eye, Package, DollarSign, Search } from "lucide-react";
 import { AdminLayout } from "@/components/layout";
 
 const orderStatusColors: Record<OrderStatus, string> = {
@@ -61,6 +62,7 @@ export function OrdersClient() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<
     PaymentMethod | "all"
   >("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -76,6 +78,7 @@ export function OrdersClient() {
           orderStatusFilter !== "all" ? orderStatusFilter : undefined,
         paymentMethod:
           paymentMethodFilter !== "all" ? paymentMethodFilter : undefined,
+        searchQuery: searchQuery || undefined,
       },
     ],
     queryFn: async () => {
@@ -88,6 +91,7 @@ export function OrdersClient() {
           orderStatusFilter !== "all" ? orderStatusFilter : undefined,
         payment_method:
           paymentMethodFilter !== "all" ? paymentMethodFilter : undefined,
+        search: searchQuery || undefined,
         sort_by: "created_at",
         sort_order: "desc",
       });
@@ -220,81 +224,98 @@ export function OrdersClient() {
         {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Filter</CardTitle>
+            <CardTitle>Cari & Filter</CardTitle>
             <CardDescription>
-              Filter pesanan berdasarkan status dan metode pembayaran
+              Cari berdasarkan ID Order atau nama produk, dan filter berdasarkan status
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium mb-2 block">
-                  Status Pesanan
-                </label>
-                <Select
-                  value={orderStatusFilter}
-                  onValueChange={(value) => {
-                    setOrderStatusFilter(value as OrderStatus | "all");
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Cari berdasarkan ID Order atau nama produk..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
                     setPage(1);
                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Semua status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="pending">Tertunda</SelectItem>
-                    <SelectItem value="processing">Diproses</SelectItem>
-                    <SelectItem value="completed">Selesai</SelectItem>
-                    <SelectItem value="canceled">Dibatalkan</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="pl-9"
+                />
               </div>
 
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium mb-2 block">
-                  Status Pembayaran
-                </label>
-                <Select
-                  value={paymentStatusFilter}
-                  onValueChange={(value) => {
-                    setPaymentStatusFilter(value as PaymentStatus | "all");
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Semua pembayaran" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Pembayaran</SelectItem>
-                    <SelectItem value="pending">Tertunda</SelectItem>
-                    <SelectItem value="paid">Lunas</SelectItem>
-                    <SelectItem value="failed">Gagal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Filter Row */}
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-2 block">
+                    Status Pesanan
+                  </label>
+                  <Select
+                    value={orderStatusFilter}
+                    onValueChange={(value) => {
+                      setOrderStatusFilter(value as OrderStatus | "all");
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="pending">Tertunda</SelectItem>
+                      <SelectItem value="processing">Diproses</SelectItem>
+                      <SelectItem value="completed">Selesai</SelectItem>
+                      <SelectItem value="canceled">Dibatalkan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium mb-2 block">
-                  Metode Pembayaran
-                </label>
-                <Select
-                  value={paymentMethodFilter}
-                  onValueChange={(value) => {
-                    setPaymentMethodFilter(value as PaymentMethod | "all");
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Semua metode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Metode</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                    <SelectItem value="cod">Bayar di Tempat</SelectItem>
-                    <SelectItem value="ewallet">E-Wallet</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-2 block">
+                    Status Pembayaran
+                  </label>
+                  <Select
+                    value={paymentStatusFilter}
+                    onValueChange={(value) => {
+                      setPaymentStatusFilter(value as PaymentStatus | "all");
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua pembayaran" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Pembayaran</SelectItem>
+                      <SelectItem value="pending">Tertunda</SelectItem>
+                      <SelectItem value="paid">Lunas</SelectItem>
+                      <SelectItem value="failed">Gagal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-2 block">
+                    Metode Pembayaran
+                  </label>
+                  <Select
+                    value={paymentMethodFilter}
+                    onValueChange={(value) => {
+                      setPaymentMethodFilter(value as PaymentMethod | "all");
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua metode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Metode</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
+                      <SelectItem value="cod">Bayar di Tempat</SelectItem>
+                      <SelectItem value="ewallet">E-Wallet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </CardContent>

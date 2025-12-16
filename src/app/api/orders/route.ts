@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     
     const orderStatus = searchParams.get('order_status')
+    const paymentStatus = searchParams.get('payment_status')
+    const paymentMethod = searchParams.get('payment_method')
+    const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
@@ -36,18 +39,33 @@ export async function GET(request: NextRequest) {
       query = query.eq('buyer_id', auth.userId)
     }
 
-    // Fix: Only apply filter if orderStatus is not null/empty/all
+    // Fix: Only apply filters if values are not null/empty/all
     if (orderStatus && orderStatus !== 'all') {
       query = query.eq('order_status', orderStatus)
     }
 
-    // Pagination
+    if (paymentStatus && paymentStatus !== 'all') {
+      query = query.eq('payment_status', paymentStatus)
+    }
+
+    if (paymentMethod && paymentMethod !== 'all') {
+      query = query.eq('payment_method', paymentMethod)
+    }
+
+    // Search by order ID or product name (implement via filter after fetch due to join limitations)
     const from = (page - 1) * limit
     const to = from + limit - 1
 
     query = query
       .order('created_at', { ascending: false })
-      .range(from, to)
+
+    // If search query exists, we need to fetch more and filter in memory
+    // due to Supabase join limitations
+    if (search && search.trim()) {
+      query = query.range(0, 999) // Fetch more for filtering
+    } else {
+      query = query.range(from, to)
+    }
 
     const { data, error, count } = await query
 
@@ -55,13 +73,30 @@ export async function GET(request: NextRequest) {
       return errorResponse(error.message)
     }
 
+    // Client-side filtering for search
+    let filteredData = data || []
+    let filteredCount = count || 0
+
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase()
+      filteredData = filteredData.filter((order) => {
+        const matchesId = order.id.toLowerCase().includes(searchLower)
+        const matchesProduct = order.product?.name?.toLowerCase().includes(searchLower)
+        return matchesId || matchesProduct
+      })
+      filteredCount = filteredData.length
+      
+      // Apply pagination to filtered results
+      filteredData = filteredData.slice(from, to + 1)
+    }
+
     return successResponse({
-      orders: data,
+      orders: filteredData,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total: filteredCount,
+        totalPages: Math.ceil(filteredCount / limit),
       },
     })
   } catch (error) {
