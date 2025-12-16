@@ -32,20 +32,21 @@ export async function GET(request: NextRequest) {
     // Filter main_image to only return primary image
     query = query.eq('product_images.is_primary', true)
 
-    if (categoryId) {
+    // Fix: Only apply filters if values are not null/empty/all
+    if (categoryId && categoryId !== 'all') {
       query = query.eq('category_id', categoryId)
     }
     
-    if (sellerId) {
+    if (sellerId && sellerId !== 'all') {
       query = query.eq('seller_id', sellerId)
     }
     
-    if (status) {
+    if (status && status !== 'all') {
       query = query.eq('status', status)
     }
     
-    // Fix: isActive is string | null, not boolean
-    if (isActive !== null) {
+    // Fix: Handle isActive properly - only filter if explicitly set to true/false
+    if (isActive === 'true' || isActive === 'false') {
       query = query.eq('is_active', isActive === 'true')
     }
 

@@ -36,19 +36,20 @@ export async function GET(request: NextRequest) {
     )
   `, { count: 'exact' })
 
-    if (adminId) {
+    // Fix: Only apply filters if values are not null/empty/all
+    if (adminId && adminId !== 'all') {
       query = query.eq("admin_id", adminId);
     }
 
-    if (action) {
+    if (action && action !== 'all') {
       query = query.eq("action", action);
     }
 
-    if (negotiationId) {
+    if (negotiationId && negotiationId !== 'all') {
       query = query.eq("meta->>negotiation_id", negotiationId);
     }
 
-    if (orderId) {
+    if (orderId && orderId !== 'all') {
       query = query.eq("meta->>order_id", orderId);
     }
 

@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
     // TODO: Migrate to user_roles table for proper RBAC
     // Current: using profiles.role (temporary)
     // Future: JOIN to user_roles table for multi-role support
-    if (role) {
+    // Fix: Only apply filter if role is not null/empty/all
+    if (role && role !== 'all') {
       query = query.eq('role', role)
     }
 

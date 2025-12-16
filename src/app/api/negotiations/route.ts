@@ -38,11 +38,12 @@ export async function GET(request: NextRequest) {
       query = query.eq('buyer_id', auth.userId)
     }
 
-    if (productId) {
+    // Fix: Only apply filters if values are not null/empty/all
+    if (productId && productId !== 'all') {
       query = query.eq('product_id', productId)
     }
 
-    if (status) {
+    if (status && status !== 'all') {
       query = query.eq('status', status)
     }
 

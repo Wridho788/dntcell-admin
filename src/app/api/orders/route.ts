@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('buyer_id', auth.userId)
     }
 
-    if (orderStatus) {
+    // Fix: Only apply filter if orderStatus is not null/empty/all
+    if (orderStatus && orderStatus !== 'all') {
       query = query.eq('order_status', orderStatus)
     }
 
