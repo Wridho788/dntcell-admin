@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
         user_id,
         full_name,
         email,
+        phone,
         role,
+        onesignal_player_id,
+        is_active,
         created_at
       `)
       .eq('user_id', auth.userId)

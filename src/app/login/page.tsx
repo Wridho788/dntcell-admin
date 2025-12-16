@@ -57,9 +57,21 @@ export default function LoginPage() {
       }
 
       if (data.user) {
-        // Simple login - role check will be handled by server components
+        // Fetch user profile to check role
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single()
+
         const redirectTo = new URLSearchParams(window.location.search).get('redirectTo')
-        router.push(redirectTo || '/dashboard')
+        
+        // Redirect based on role
+        if (profileData?.role === 'admin') {
+          router.push(redirectTo || '/dashboard')
+        } else {
+          router.push(redirectTo || '/user/products')
+        }
         router.refresh()
       }
     } catch (error) {
@@ -80,7 +92,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Welcome Back</h1>
           <p className="text-muted-foreground">
-            Sign in to your admin account to continue
+            Sign in to your account to continue
           </p>
         </div>
 
@@ -89,7 +101,7 @@ export default function LoginPage() {
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-xl">Sign In</CardTitle>
             <CardDescription>
-              Enter your credentials to access the DNTCELL admin panel
+              Enter your credentials to access DNTCELL
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -170,8 +182,14 @@ export default function LoginPage() {
         </Card>
 
         {/* Footer */}
-        <div className="text-center text-sm text-muted-foreground">
-          <p>Secure admin access to DNTCELL management system</p>
+        <div className="text-center text-sm text-muted-foreground space-y-2">
+          <p>Secure access to DNTCELL system</p>
+          <div>
+            <span className="text-muted-foreground">Don't have an account? </span>
+            <a href="/register" className="text-primary hover:underline font-medium">
+              Sign Up
+            </a>
+          </div>
         </div>
       </div>
     </div>

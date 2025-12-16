@@ -93,12 +93,15 @@ export class ApiClient {
 
   // Products
   async getProducts(params?: {
+    query?: string
     category_id?: string
     seller_id?: string
     status?: string
     is_active?: boolean
     page?: number
     limit?: number
+    sort_by?: string
+    sort_order?: string
   }) {
     const queryParams = new URLSearchParams()
     if (params) {

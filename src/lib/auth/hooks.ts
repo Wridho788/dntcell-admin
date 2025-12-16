@@ -83,6 +83,16 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
       try {
+        // Handle session expiry or sign out
+        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+          setUser(null)
+          setIsAdmin(false)
+          setLoading(false)
+          // Clear admin cache
+          adminCache.clear()
+          return
+        }
+        
         setUser(session?.user ?? null)
         
         if (session?.user) {
