@@ -14,18 +14,27 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Check if user is authenticated and is admin
+    const auth = await requireAuth(request)
+    const isAdmin = auth?.isAdmin || false
+
     const { data: product, error } = await supabaseAdmin
       .from('products')
       .select(`
         *,
         category:categories(id, name),
         seller:profiles(user_id, full_name),
-        images:product_images(id, image_url, alt_text, is_main)
+        images:product_images(id, url, alt_text, is_primary, sort_order)
       `)
       .eq('id', params.id)
       .single()
 
     if (error || !product) {
+      return notFoundResponse('Product not found')
+    }
+
+    // Only admin can view inactive products
+    if (!product.is_active && !isAdmin) {
       return notFoundResponse('Product not found')
     }
 
@@ -79,8 +88,9 @@ export async function PUT(
     }
 
     // Recalculate pricing if base_price or category_id changed
+    // Use 'in' operator to avoid falsy value bugs (e.g., base_price = 0)
     let pricingUpdate = {}
-    if (validation.data.base_price || validation.data.category_id) {
+    if ('base_price' in validation.data || 'category_id' in validation.data) {
       const pricing = await recalculateProductPricing(
         params.id,
         validation.data.base_price,
@@ -119,15 +129,18 @@ export async function PUT(
         )
       : undefined
 
-    // Log activity with pricing snapshot
-    await logActivity({
-      admin_id: auth.userId,
-      action: 'PRODUCT_UPDATED',
-      meta: { 
-        product_id: params.id,
-        ...(pricingSnapshot && { pricing: pricingSnapshot }),
-      },
-    })
+    // Log activity with pricing snapshot (admin only)
+    if (auth.isAdmin) {
+      await logActivity({
+        admin_id: auth.userId,
+        action: 'PRODUCT_UPDATED',
+        meta: { 
+          product_id: params.id,
+          actor_role: 'admin',
+          ...(pricingSnapshot && { pricing: pricingSnapshot }),
+        },
+      })
+    }
 
     return successResponse(product, 'Product updated successfully')
   } catch (error) {
@@ -174,12 +187,18 @@ export async function DELETE(
       return errorResponse(deleteError.message)
     }
 
-    // Log activity
-    await logActivity({
-      admin_id: auth.userId,
-      action: 'PRODUCT_DELETED',
-      meta: { product_id: params.id, name: existingProduct.name },
-    })
+    // Log activity (admin only)
+    if (auth.isAdmin) {
+      await logActivity({
+        admin_id: auth.userId,
+        action: 'PRODUCT_DELETED',
+        meta: { 
+          product_id: params.id, 
+          name: existingProduct.name,
+          actor_role: 'admin',
+        },
+      })
+    }
 
     return successResponse(null, 'Product deleted successfully')
   } catch (error) {

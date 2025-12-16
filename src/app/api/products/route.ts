@@ -26,8 +26,11 @@ export async function GET(request: NextRequest) {
         *,
         category:categories(id, name),
         seller:profiles(user_id, full_name),
-        main_image:product_images(image_url, alt_text)
+        main_image:product_images!inner(url, alt_text)
       `, { count: 'exact' })
+
+    // Filter main_image to only return primary image
+    query = query.eq('product_images.is_primary', true)
 
     if (categoryId) {
       query = query.eq('category_id', categoryId)
@@ -41,6 +44,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status)
     }
     
+    // Fix: isActive is string | null, not boolean
     if (isActive !== null) {
       query = query.eq('is_active', isActive === 'true')
     }
@@ -84,9 +88,9 @@ const createProductSchema = z.object({
   category_id: z.string().uuid(),
   status: z.enum(['available', 'sold', 'reserved']).default('available'),
   images: z.array(z.object({
-    image_url: z.string().url(),
+    url: z.string().url(),
     alt_text: z.string().optional(),
-    is_main: z.boolean().default(false),
+    is_primary: z.boolean().default(false),
   })).optional(),
 })
 
@@ -142,11 +146,15 @@ export async function POST(request: NextRequest) {
 
     // Insert images if provided
     if (images && images.length > 0) {
-      const imageInserts = images.map(img => ({
+      // Ensure only one primary image
+      const hasPrimary = images.some(img => img.is_primary)
+      const imageInserts = images.map((img, index) => ({
         product_id: product.id,
-        image_url: img.image_url,
+        url: img.url,
         alt_text: img.alt_text,
-        is_main: img.is_main,
+        // If no primary specified, make first image primary
+        is_primary: hasPrimary ? img.is_primary : index === 0,
+        sort_order: index,
       }))
 
       await supabaseAdmin
@@ -163,15 +171,19 @@ export async function POST(request: NextRequest) {
     )
 
     // Log activity with pricing snapshot
-    await logActivity({
-      admin_id: auth.userId,
-      action: 'PRODUCT_CREATED',
-      meta: { 
-        product_id: product.id, 
-        name: product.name,
-        pricing: pricingSnapshot,
-      },
-    })
+    // Use admin_id only if actor is admin, otherwise this is seller action
+    if (auth.isAdmin) {
+      await logActivity({
+        admin_id: auth.userId,
+        action: 'PRODUCT_CREATED',
+        meta: { 
+          product_id: product.id, 
+          name: product.name,
+          pricing: pricingSnapshot,
+          actor_role: 'admin',
+        },
+      })
+    }
 
     return successResponse(product, 'Product created successfully', 201)
   } catch (error) {
