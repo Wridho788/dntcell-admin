@@ -7,15 +7,15 @@ import { parseRequestBody } from '@/api/_core/validator';
 import { handleApiError } from '@/api/_core/error';
 import { logActivity } from '@/api/_core/activity-logger';
 
-// Schema for updating product image
+// Schema for updating product image - aligned with DB schema
 const updateProductImageSchema = z.object({
-  display_order: z.number().int().min(0).optional(),
-  is_main: z.boolean().optional(),
+  sort_order: z.number().int().min(0).optional(),
+  is_primary: z.boolean().optional(),
 });
 
 /**
  * GET /api/product-images/:id
- * Get single product image
+ * Get single product image (with ownership verification)
  */
 export async function GET(
   request: NextRequest,
@@ -26,15 +26,29 @@ export async function GET(
     if (!authResult) {
       return unauthorizedResponse('Authentication required');
     }
+    const { userId, isAdmin } = authResult;
 
+    // Get image with product info for ownership check
     const { data, error } = await supabaseAdmin
       .from('product_images')
-      .select('*')
+      .select(`
+        *,
+        products!inner(
+          id,
+          seller_id
+        )
+      `)
       .eq('id', params.id)
       .single();
 
     if (error || !data) {
       return notFoundResponse('Product image not found');
+    }
+
+    // Authorization: only owner or admin can view image details
+    const product = data.products as { id: string; seller_id: string };
+    if (!isAdmin && product.seller_id !== userId) {
+      return errorResponse('You can only view images of your own products', 403);
     }
 
     return successResponse(data);
@@ -64,28 +78,37 @@ export async function PATCH(
     }
     const payload = parseResult.data;
 
-    // Get current image with product info
+    // Get current image with product info - explicit select for type safety
     const { data: currentImage, error: fetchError } = await supabaseAdmin
       .from('product_images')
-      .select('*, products!inner(id, seller_id, name)')
+      .select(`
+        id,
+        product_id,
+        url,
+        products!inner(
+          id,
+          seller_id,
+          name
+        )
+      `)
       .eq('id', params.id)
-      .single();
+      .single()
 
     if (fetchError || !currentImage) {
       return notFoundResponse('Product image not found');
     }
 
-    // Only owner or admin can update
-    const product = currentImage.products as any;
+    // Type-safe product access - Supabase returns nested object, not array
+    const product = currentImage.products as unknown as { id: string; seller_id: string; name: string };
     if (product.seller_id !== userId && !isAdmin) {
       return errorResponse('You can only update images of your own products', 403);
     }
 
-    // If setting as main image, unset other main images
-    if (payload.is_main === true) {
+    // If setting as primary image, unset other primary images
+    if (payload.is_primary === true) {
       await supabaseAdmin
         .from('product_images')
-        .update({ is_main: false })
+        .update({ is_primary: false })
         .eq('product_id', product.id);
     }
 
@@ -136,19 +159,28 @@ export async function DELETE(
     }
     const { userId, isAdmin } = authResult;
 
-    // Get current image with product info
+    // Get current image with product info - explicit select for type safety
     const { data: currentImage, error: fetchError } = await supabaseAdmin
       .from('product_images')
-      .select('*, products!inner(id, seller_id, name)')
+      .select(`
+        id,
+        product_id,
+        url,
+        products!inner(
+          id,
+          seller_id,
+          name
+        )
+      `)
       .eq('id', params.id)
-      .single();
+      .single()
 
     if (fetchError || !currentImage) {
       return notFoundResponse('Product image not found');
     }
 
-    // Only owner or admin can delete
-    const product = currentImage.products as any;
+    // Type-safe product access - Supabase returns nested object, not array
+    const product = currentImage.products as unknown as { id: string; seller_id: string; name: string };
     if (product.seller_id !== userId && !isAdmin) {
       return errorResponse('You can only delete images of your own products', 403);
     }
@@ -163,6 +195,11 @@ export async function DELETE(
       return serverErrorResponse('Failed to delete product image');
     }
 
+    // TODO: Delete physical file from Supabase Storage
+    // Extract path from currentImage.url and call:
+    // await supabaseAdmin.storage.from('product-images').remove([filePath])
+    // This prevents storage leaks and orphaned files
+
     // Log activity if admin
     if (isAdmin) {
       await logActivity({
@@ -172,7 +209,7 @@ export async function DELETE(
           image_id: params.id,
           product_id: product.id,
           product_name: product.name,
-          image_url: currentImage.image_url,
+          image_url: currentImage.url,
         },
       });
     }

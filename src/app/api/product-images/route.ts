@@ -7,12 +7,12 @@ import { parseRequestBody } from '@/api/_core/validator';
 import { handleApiError } from '@/api/_core/error';
 import { logActivity } from '@/api/_core/activity-logger';
 
-// Schema for creating product image
+// Schema for creating product image - aligned with DB schema
 const createProductImageSchema = z.object({
   product_id: z.string().uuid(),
-  image_url: z.string().url(),
-  display_order: z.number().int().min(0).optional(),
-  is_main: z.boolean().optional().default(false),
+  url: z.string().url(),
+  sort_order: z.number().int().min(0).optional(),
+  is_primary: z.boolean().optional().default(false),
 });
 
 /**
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       .from('product_images')
       .select('*')
       .eq('product_id', product_id)
-      .order('display_order', { ascending: true })
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
 
     const { data, error } = await query;
@@ -87,11 +87,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('You can only add images to your own products', 403);
     }
 
-    // If is_main is true, unset other main images
-    if (payload.is_main) {
+    // If is_primary is true, unset other primary images
+    if (payload.is_primary) {
       await supabaseAdmin
         .from('product_images')
-        .update({ is_main: false })
+        .update({ is_primary: false })
         .eq('product_id', payload.product_id);
     }
 
