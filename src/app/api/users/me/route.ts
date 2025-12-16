@@ -12,18 +12,31 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse()
     }
 
-    const { data: profile, error } = await supabaseAdmin
+    // SECURITY: Whitelist explicit fields - never expose internal/sensitive fields
+    // Only return what the user needs for UI
+    // Future-proof: Add fields explicitly when needed (is_verified, last_login_at)
+    const { data: user, error } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select(`
+        user_id,
+        full_name,
+        email,
+        role,
+        created_at
+      `)
       .eq('user_id', auth.userId)
       .single()
 
-    if (error || !profile) {
-      return errorResponse(error?.message || 'Profile not found')
+    if (error || !user) {
+      // TODO: Add fallback to auth.users table if profile doesn't exist
+      // This ensures consistency between Supabase Auth and profiles table
+      // Recommendation: Create profile auto-creation trigger on auth.users insert
+      return errorResponse(error?.message || 'Profile not found', 404)
     }
 
+    // Standardized response shape: use 'user' for consistency
     return successResponse({
-      profile,
+      user,
       isAdmin: auth.isAdmin,
     })
   } catch (error) {
