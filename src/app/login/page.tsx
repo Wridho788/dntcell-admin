@@ -67,11 +67,9 @@ export default function LoginPage() {
         const redirectTo = new URLSearchParams(window.location.search).get('redirectTo')
         
         // Redirect based on role
-        if (profileData?.role === 'admin') {
+        if (profileData?.role === 'super_admin') {
           router.push(redirectTo || '/dashboard')
-        } else {
-          router.push(redirectTo || '/user/products')
-        }
+        } 
         router.refresh()
       }
     } catch (error) {
