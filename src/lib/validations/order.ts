@@ -1,15 +1,15 @@
 import { z } from 'zod'
 
-// Payment method enum
-export const paymentMethods = ['cod', 'transfer', 'ewallet'] as const
+// Payment method enum - Updated to match state machine
+export const paymentMethods = ['cod', 'bank_transfer'] as const
 export type PaymentMethod = typeof paymentMethods[number]
 
-// Payment status enum
-export const paymentStatuses = ['pending', 'paid', 'failed'] as const
+// Payment status enum - Updated to match state machine
+export const paymentStatuses = ['unpaid', 'waiting_confirmation', 'paid', 'failed'] as const
 export type PaymentStatus = typeof paymentStatuses[number]
 
-// Order status enum
-export const orderStatuses = ['pending', 'processing', 'completed', 'canceled'] as const
+// Order status enum - Updated to match state machine
+export const orderStatuses = ['pending_payment', 'paid', 'processing', 'completed', 'cancelled'] as const
 export type OrderStatus = typeof orderStatuses[number]
 
 // Base order schema
@@ -38,8 +38,8 @@ export const createOrderSchema = z.object({
   negotiation_id: z.string().uuid().optional().nullable(),
   final_price: z.number().int().positive({ message: 'Final price must be greater than 0' }),
   payment_method: z.enum(paymentMethods).default('cod'),
-  payment_status: z.enum(paymentStatuses).default('pending'),
-  order_status: z.enum(orderStatuses).default('pending'),
+  payment_status: z.enum(paymentStatuses).default('unpaid'),
+  order_status: z.enum(orderStatuses).default('pending_payment'),
   shipping_address: z.string().min(10, { message: 'Shipping address must be at least 10 characters' }),
   admin_note: z.string().optional(),
 })

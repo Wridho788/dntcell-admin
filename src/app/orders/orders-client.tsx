@@ -40,14 +40,16 @@ import { Eye, Package, DollarSign, Search } from "lucide-react";
 import { AdminLayout } from "@/components/layout";
 
 const orderStatusColors: Record<OrderStatus, string> = {
-  pending: "bg-yellow-500",
+  pending_payment: "bg-yellow-500",
+  paid: "bg-purple-500",
   processing: "bg-blue-500",
   completed: "bg-green-500",
-  canceled: "bg-red-500",
+  cancelled: "bg-red-500",
 };
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
-  pending: "bg-yellow-500",
+  unpaid: "bg-gray-500",
+  waiting_confirmation: "bg-yellow-500",
   paid: "bg-green-500",
   failed: "bg-red-500",
 };
@@ -128,15 +130,15 @@ export function OrdersClient() {
   // Calculate stats
   const stats = {
     total: data?.total || 0,
-    pending:
-      data?.orders.filter((o) => o.order_status === "pending").length || 0,
+    pending_payment:
+      data?.orders.filter((o) => o.order_status === "pending_payment").length || 0,
     processing:
       data?.orders.filter((o) => o.order_status === "processing").length || 0,
     completed:
       data?.orders.filter((o) => o.order_status === "completed").length || 0,
     unpaidAmount:
       data?.orders
-        .filter((o) => o.payment_status === "pending")
+        .filter((o) => o.payment_status === "unpaid" || o.payment_status === "waiting_confirmation")
         .reduce((sum, o) => sum + o.final_price, 0) || 0,
   };
 
@@ -188,11 +190,11 @@ export function OrdersClient() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tertunda</CardTitle>
+              <CardTitle className="text-sm font-medium">Menunggu Pembayaran</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                {stats.pending}
+                {stats.pending_payment}
               </div>
             </CardContent>
           </Card>

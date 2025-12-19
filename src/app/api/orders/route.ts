@@ -7,6 +7,11 @@ import { parseRequestBody } from '@/api/_core/validator'
 import { handleApiError } from '@/api/_core/error'
 import { logActivity } from '@/api/_core/activity-logger'
 import { sendAdminNotification } from '@/lib/notifications/notification-helper'
+import { 
+  assertOrderTransition, 
+  getInitialOrderState, 
+  PaymentMethod 
+} from '@/lib/domain/order-states'
 
 // GET /api/orders - List orders
 export async function GET(request: NextRequest) {
@@ -108,8 +113,8 @@ export async function GET(request: NextRequest) {
 const createOrderSchema = z.object({
   product_id: z.string().uuid(),
   negotiation_id: z.string().uuid().optional(),
-  payment_method: z.enum(['cod', 'transfer', 'ewallet']),
-  shipping_address: z.string().min(1),
+  payment_method: z.enum(['cod', 'bank_transfer']),
+  shipping_address: z.string().min(10, { message: 'Shipping address must be at least 10 characters' }),
   note: z.string().optional(),
 })
 
@@ -125,12 +130,12 @@ export async function POST(request: NextRequest) {
       return errorResponse(validation.error, 422)
     }
 
-    const { negotiation_id, product_id, ...orderData } = validation.data
+    const { negotiation_id, product_id, payment_method, shipping_address, note } = validation.data
 
-    // Get product
+    // 1. Validate product exists and is active
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
-      .select('id, name, selling_price, seller_id, is_active')
+      .select('id, name, selling_price, seller_id, is_active, stock')
       .eq('id', product_id)
       .single()
 
@@ -142,20 +147,33 @@ export async function POST(request: NextRequest) {
       return errorResponse('Product is not available', 400)
     }
 
+    // 2. Check stock
+    if (product.stock <= 0) {
+      return errorResponse('Product is out of stock', 400)
+    }
+
+    // 3. Buyer cannot be the seller
+    if (product.seller_id === auth.userId) {
+      return errorResponse('You cannot buy your own product', 400)
+    }
+
     let finalPrice = product.selling_price
 
-    // If negotiation_id provided, validate it
+    // 4. If negotiation_id provided, validate it
     if (negotiation_id) {
       const { data: negotiation, error: negotiationError } = await supabaseAdmin
         .from('negotiations')
-        .select('id, status, final_price, used')
+        .select('id, status, final_price, used, buyer_id')
         .eq('id', negotiation_id)
-        .eq('buyer_id', auth.userId)
         .eq('product_id', product_id)
         .single()
 
       if (negotiationError || !negotiation) {
         return errorResponse('Invalid negotiation', 400)
+      }
+
+      if (negotiation.buyer_id !== auth.userId) {
+        return errorResponse('This negotiation does not belong to you', 403)
       }
 
       if (negotiation.status !== 'approved') {
@@ -167,63 +185,87 @@ export async function POST(request: NextRequest) {
       }
 
       finalPrice = negotiation.final_price || product.selling_price
+    }
 
-      // Mark negotiation as used
+    // 5. Get initial order state based on payment method
+    const paymentMethodEnum = payment_method === 'cod' ? PaymentMethod.COD : PaymentMethod.BANK_TRANSFER
+    const initialState = getInitialOrderState(paymentMethodEnum)
+
+    // 6. Validate the initial state transition
+    try {
+      assertOrderTransition({
+        currentOrder: initialState,
+        actor: 'user',
+        action: 'create_order',
+      })
+    } catch (error: any) {
+      return errorResponse(error.message || 'Invalid order state', error.status || 400)
+    }
+
+    // 7. Create order (atomic transaction with stock reduction)
+    const { data: order, error: orderError } = await supabaseAdmin.rpc('create_order_with_stock_reduction', {
+      p_product_id: product_id,
+      p_buyer_id: auth.userId,
+      p_seller_id: product.seller_id,
+      p_negotiation_id: negotiation_id || null,
+      p_price: finalPrice,
+      p_payment_method: payment_method,
+      p_order_status: initialState.order_status,
+      p_payment_status: initialState.payment_status,
+      p_shipping_address: shipping_address,
+      p_note: note || null,
+    })
+
+    if (orderError) {
+      return errorResponse(orderError.message)
+    }
+
+    // If order creation failed (no data returned)
+    if (!order || order.length === 0) {
+      return errorResponse('Failed to create order', 500)
+    }
+
+    const createdOrder = order[0]
+
+    // 8. If negotiation was used, mark it as used
+    if (negotiation_id) {
       await supabaseAdmin
         .from('negotiations')
         .update({ used: true })
         .eq('id', negotiation_id)
     }
 
-    // Create order
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from('orders')
-      .insert({
-        product_id,
-        buyer_id: auth.userId,
-        seller_id: product.seller_id,
-        negotiation_id,
-        price: finalPrice,
-        payment_method: orderData.payment_method,
-        shipping_address: orderData.shipping_address,
-        note: orderData.note,
-        order_status: 'pending',
-      })
-      .select()
-      .single()
-
-    if (orderError) {
-      return errorResponse(orderError.message)
-    }
-
-    // Send notification to all admins (DB + Push)
+    // 9. Send notification to all admins (DB + Push)
     await sendAdminNotification({
       type: 'new_order',
       title: 'New Order Received',
       message: `New order for ${product.name} - Rp ${finalPrice.toLocaleString('id-ID')}`,
       data: { 
-        order_id: order.id,
+        order_id: createdOrder.id,
         product_id,
         product_name: product.name,
         price: finalPrice,
-        payment_method: orderData.payment_method,
+        payment_method: payment_method,
       },
       url: `${process.env.NEXT_PUBLIC_APP_URL}/orders`,
     })
 
-    // Log activity - USER action, not admin
+    // 10. Log activity
     await logActivity({
       admin_id: auth.userId,
       action: 'USER_CREATE_ORDER',
       meta: { 
-        order_id: order.id,
+        order_id: createdOrder.id,
         product_id,
         price: finalPrice,
         buyer_id: auth.userId,
+        payment_method: payment_method,
+        order_status: initialState.order_status,
+        payment_status: initialState.payment_status,
       },
     })
 
-    return successResponse(order, 'Order created successfully', 201)
+    return successResponse(createdOrder, 'Order created successfully', 201)
   } catch (error) {
     return handleApiError(error)
   }

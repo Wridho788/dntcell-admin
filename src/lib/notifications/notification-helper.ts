@@ -15,6 +15,12 @@ export type NotificationType =
   | 'new_order'
   | 'order_status_updated'
   | 'order_payment_updated'
+  | 'payment_proof_uploaded'
+  | 'payment_approved'
+  | 'payment_rejected'
+  | 'order_processing'
+  | 'order_completed'
+  | 'order_cancelled'
   | 'system_message'
 
 interface NotificationParams {

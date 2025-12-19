@@ -39,14 +39,16 @@ import { ArrowLeft, Package, User, CreditCard, Clock } from "lucide-react"
 import { OrderStatusHistory } from "@/components/activity/order-status-history"
 
 const orderStatusColors: Record<OrderStatus, string> = {
-  pending: "bg-yellow-500",
+  pending_payment: "bg-yellow-500",
+  paid: "bg-purple-500",
   processing: "bg-blue-500",
   completed: "bg-green-500",
-  canceled: "bg-red-500",
+  cancelled: "bg-red-500",
 }
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
-  pending: "bg-yellow-500",
+  unpaid: "bg-gray-500",
+  waiting_confirmation: "bg-yellow-500",
   paid: "bg-green-500",
   failed: "bg-red-500",
 }
@@ -102,7 +104,7 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   })
 
   const handleStatusChange = (status: OrderStatus) => {
-    if (status === 'canceled') {
+    if (status === 'cancelled') {
       setSelectedOrderStatus(status)
       setShowCancelDialog(true)
     } else {
@@ -111,10 +113,10 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   }
 
   const handleConfirmCancel = () => {
-    if (selectedOrderStatus === 'canceled') {
+    if (selectedOrderStatus === 'cancelled') {
       updateOrderStatusMutation.mutate({ 
-        status: 'canceled', 
-        note: cancelNote || "Order canceled by admin" 
+        status: 'cancelled', 
+        note: cancelNote || "Order cancelled by admin" 
       })
     }
   }
