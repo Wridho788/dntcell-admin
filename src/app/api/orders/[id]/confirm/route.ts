@@ -9,16 +9,14 @@ import { logActivity } from '@/api/_core/activity-logger'
 import { sendUserNotification } from '@/lib/notifications/notification-helper'
 import { 
   assertOrderTransition, 
-  PaymentStatus,
   OrderStatus 
 } from '@/lib/domain/order-states'
 
-const paymentReviewSchema = z.object({
-  action: z.enum(['approve', 'reject'], { message: 'Action must be either approve or reject' }),
+const confirmOrderSchema = z.object({
   admin_note: z.string().optional(),
 })
 
-// POST /api/orders/:id/payment-review - Review payment proof (ADMIN only)
+// POST /api/orders/:id/confirm - Admin confirms order is valid
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -29,20 +27,20 @@ export async function POST(
       return unauthorizedResponse()
     }
 
-    // Only admins can review payment
+    // Only admins can confirm orders
     if (!auth.isAdmin) {
-      return errorResponse('Only admins can review payment', 403)
+      return errorResponse('Only admins can confirm orders', 403)
     }
 
     const { id: orderId } = params
 
-    // Validate request body
-    const validation = await parseRequestBody(request, paymentReviewSchema)
+    // Validate request body (optional admin note)
+    const validation = await parseRequestBody(request, confirmOrderSchema)
     if (!validation.success) {
       return errorResponse(validation.error, 422)
     }
 
-    const { action, admin_note } = validation.data
+    const { admin_note } = validation.data
 
     // 1. Get order with buyer details
     const { data: order, error: orderError } = await supabaseAdmin
@@ -59,44 +57,30 @@ export async function POST(
       return errorResponse('Order not found', 404)
     }
 
-    // 2. Check current payment status
-    if (order.payment_status !== PaymentStatus.WAITING_CONFIRMATION) {
-      return errorResponse(
-        'Can only review orders with payment status waiting_confirmation',
-        409
-      )
-    }
-
-    // 3. Determine next state based on action
-    const nextPaymentStatus = action === 'approve' ? PaymentStatus.PAID : PaymentStatus.FAILED
-    const nextOrderStatus = action === 'approve' ? OrderStatus.PAID : OrderStatus.PENDING_PAYMENT
-
-    // 4. Validate state transition
+    // 2. Validate state transition
     try {
       assertOrderTransition({
         currentOrder: {
           order_status: order.order_status as OrderStatus,
-          payment_status: order.payment_status as PaymentStatus,
+          payment_status: order.payment_status,
           payment_method: order.payment_method,
         },
-        nextPaymentStatus,
-        nextOrderStatus,
+        nextOrderStatus: OrderStatus.CONFIRMED,
         actor: 'admin',
-        action: action === 'approve' ? 'approve_payment' : 'reject_payment',
+        action: 'confirm_order',
       })
     } catch (error: any) {
       return errorResponse(
-        error.message || 'Invalid payment review action',
+        error.message || 'Cannot confirm this order',
         error.status || 409
       )
     }
 
-    // 5. Update order
+    // 3. Update order status to confirmed
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
-        payment_status: nextPaymentStatus,
-        order_status: nextOrderStatus,
+        order_status: OrderStatus.CONFIRMED,
         admin_note: admin_note || order.admin_note,
         updated_at: new Date().toISOString(),
       })
@@ -108,46 +92,42 @@ export async function POST(
       return errorResponse(updateError.message)
     }
 
-    // 6. Send notification to buyer
-    const notificationTitle = action === 'approve' 
-      ? 'Payment Confirmed' 
-      : 'Payment Rejected'
-    const notificationMessage = action === 'approve'
-      ? `Your payment for ${order.product?.name} has been confirmed`
-      : `Your payment for ${order.product?.name} has been rejected. Please reupload payment proof.`
+    // 4. Log status change in order_status_logs
+    await supabaseAdmin.from('order_status_logs').insert({
+      order_id: orderId,
+      from_status: order.order_status,
+      to_status: OrderStatus.CONFIRMED,
+      changed_by: auth.userId,
+    })
 
+    // 5. Send notification to buyer
     if (order.buyer?.user_id) {
       await sendUserNotification({
         userId: order.buyer.user_id,
-        type: action === 'approve' ? 'payment_approved' : 'payment_rejected',
-        title: notificationTitle,
-        message: notificationMessage,
+        type: 'order_confirmed',
+        title: 'Order Confirmed',
+        message: `Your order for ${order.product?.name} has been confirmed`,
         data: {
           order_id: orderId,
           product_name: order.product?.name,
-          action,
         },
         url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${orderId}`,
       })
     }
 
-    // 7. Log activity
+    // 6. Log activity
     await logActivity({
       admin_id: auth.userId,
-      action: action === 'approve' ? 'ADMIN_APPROVE_PAYMENT' : 'ADMIN_REJECT_PAYMENT',
+      action: 'ORDER_CONFIRMED',
       meta: {
         order_id: orderId,
-        previous_payment_status: order.payment_status,
-        new_payment_status: nextPaymentStatus,
-        new_order_status: nextOrderStatus,
+        previous_order_status: order.order_status,
+        new_order_status: OrderStatus.CONFIRMED,
         admin_note,
       },
     })
 
-    return successResponse(
-      updatedOrder,
-      action === 'approve' ? 'Payment approved successfully' : 'Payment rejected successfully'
-    )
+    return successResponse(updatedOrder, 'Order confirmed successfully')
   } catch (error) {
     return handleApiError(error)
   }

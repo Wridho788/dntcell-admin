@@ -39,16 +39,15 @@ import { ArrowLeft, Package, User, CreditCard, Clock } from "lucide-react"
 import { OrderStatusHistory } from "@/components/activity/order-status-history"
 
 const orderStatusColors: Record<OrderStatus, string> = {
-  pending_payment: "bg-yellow-500",
-  paid: "bg-purple-500",
-  processing: "bg-blue-500",
+  pending: "bg-yellow-500",
+  confirmed: "bg-blue-500",
+  processing: "bg-indigo-500",
   completed: "bg-green-500",
   cancelled: "bg-red-500",
 }
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
-  unpaid: "bg-gray-500",
-  waiting_confirmation: "bg-yellow-500",
+  pending: "bg-yellow-500",
   paid: "bg-green-500",
   failed: "bg-red-500",
 }

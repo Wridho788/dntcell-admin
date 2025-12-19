@@ -63,11 +63,10 @@ export async function POST(
       assertOrderTransition({
         currentOrder: {
           order_status: order.order_status as OrderStatus,
-          payment_status: order.payment_status as PaymentStatus,
+          payment_status: order.payment_status,
           payment_method: order.payment_method,
         },
         nextOrderStatus: OrderStatus.COMPLETED,
-        nextPaymentStatus: PaymentStatus.PAID,
         actor: 'admin',
         action: 'complete_order',
       })
@@ -83,7 +82,6 @@ export async function POST(
       .from('orders')
       .update({
         order_status: OrderStatus.COMPLETED,
-        payment_status: PaymentStatus.PAID,
         admin_note: admin_note || order.admin_note,
         updated_at: new Date().toISOString(),
       })
@@ -94,6 +92,14 @@ export async function POST(
     if (updateError) {
       return errorResponse(updateError.message)
     }
+
+    // 4. Log status change in order_status_logs
+    await supabaseAdmin.from('order_status_logs').insert({
+      order_id: orderId,
+      from_status: order.order_status,
+      to_status: OrderStatus.COMPLETED,
+      changed_by: auth.userId,
+    })
 
     // 4. Send notification to buyer
     if (order.buyer?.user_id) {
@@ -113,7 +119,7 @@ export async function POST(
     // 5. Log activity
     await logActivity({
       admin_id: auth.userId,
-      action: 'ADMIN_COMPLETE_ORDER',
+      action: 'ORDER_COMPLETED',
       meta: {
         order_id: orderId,
         previous_order_status: order.order_status,

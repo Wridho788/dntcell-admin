@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
 const createOrderSchema = z.object({
   product_id: z.string().uuid(),
   negotiation_id: z.string().uuid().optional(),
-  payment_method: z.enum(['cod', 'bank_transfer']),
+  payment_method: z.enum(['cod', 'transfer']),
   shipping_address: z.string().min(10, { message: 'Shipping address must be at least 10 characters' }),
   note: z.string().optional(),
 })
@@ -187,8 +187,8 @@ export async function POST(request: NextRequest) {
       finalPrice = negotiation.final_price || product.selling_price
     }
 
-    // 5. Get initial order state based on payment method
-    const paymentMethodEnum = payment_method === 'cod' ? PaymentMethod.COD : PaymentMethod.BANK_TRANSFER
+    // 5. Get initial order state - always pending
+    const paymentMethodEnum = payment_method === 'cod' ? PaymentMethod.COD : PaymentMethod.TRANSFER
     const initialState = getInitialOrderState(paymentMethodEnum)
 
     // 6. Validate the initial state transition
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         price: finalPrice,
         payment_method: payment_method,
       },
-      url: `${process.env.NEXT_PUBLIC_APP_URL}/orders`,
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${createdOrder.id}`,
     })
 
     // 10. Log activity

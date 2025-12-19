@@ -1,27 +1,26 @@
 /**
  * Order State Machine
- * Defines valid states and transitions for order workflow
- * BACKEND ONLY - Admin panel does NOT control state transitions
+ * Admin panel is the single source of truth for order management
+ * User app only submits intent, admin controls all state transitions
  */
 
 export enum OrderStatus {
-  PENDING_PAYMENT = 'pending_payment',
-  PAID = 'paid',
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
   PROCESSING = 'processing',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
 }
 
 export enum PaymentStatus {
-  UNPAID = 'unpaid',
-  WAITING_CONFIRMATION = 'waiting_confirmation',
+  PENDING = 'pending',
   PAID = 'paid',
   FAILED = 'failed',
 }
 
 export enum PaymentMethod {
   COD = 'cod',
-  BANK_TRANSFER = 'bank_transfer',
+  TRANSFER = 'transfer',
 }
 
 export type UserRole = 'user' | 'admin'
@@ -51,54 +50,33 @@ export interface TransitionContext {
  * Each key represents an action, mapped to validation rules
  */
 const TRANSITION_RULES: Record<string, (ctx: TransitionContext) => boolean> = {
-  // CREATE ORDER - Initial state determination
+  // CREATE ORDER - Initial state (user submits order)
   'create_order': (ctx) => {
     const { currentOrder } = ctx
-    if (currentOrder.payment_method === PaymentMethod.COD) {
-      return (
-        currentOrder.order_status === OrderStatus.PROCESSING &&
-        currentOrder.payment_status === PaymentStatus.UNPAID
-      )
-    } else if (currentOrder.payment_method === PaymentMethod.BANK_TRANSFER) {
-      return (
-        currentOrder.order_status === OrderStatus.PENDING_PAYMENT &&
-        currentOrder.payment_status === PaymentStatus.UNPAID
-      )
-    }
-    return false
+    return (
+      currentOrder.order_status === OrderStatus.PENDING &&
+      currentOrder.payment_status === PaymentStatus.PENDING
+    )
   },
 
-  // UPLOAD PAYMENT PROOF - User action for bank_transfer only
-  'upload_payment_proof': (ctx) => {
+  // CONFIRM ORDER - Admin confirms order is valid
+  'confirm_order': (ctx) => {
+    const { currentOrder, nextOrderStatus, actor } = ctx
+    return (
+      actor === 'admin' &&
+      currentOrder.order_status === OrderStatus.PENDING &&
+      nextOrderStatus === OrderStatus.CONFIRMED
+    )
+  },
+
+  // MARK AS PAID - Admin marks payment as received (transfer only)
+  'mark_as_paid': (ctx) => {
     const { currentOrder, nextPaymentStatus, actor } = ctx
     return (
-      actor === 'user' &&
-      currentOrder.payment_method === PaymentMethod.BANK_TRANSFER &&
-      currentOrder.order_status === OrderStatus.PENDING_PAYMENT &&
-      currentOrder.payment_status === PaymentStatus.UNPAID &&
-      nextPaymentStatus === PaymentStatus.WAITING_CONFIRMATION
-    )
-  },
-
-  // APPROVE PAYMENT - Admin reviews and approves payment proof
-  'approve_payment': (ctx) => {
-    const { currentOrder, nextPaymentStatus, nextOrderStatus, actor } = ctx
-    return (
       actor === 'admin' &&
-      currentOrder.payment_status === PaymentStatus.WAITING_CONFIRMATION &&
-      nextPaymentStatus === PaymentStatus.PAID &&
-      nextOrderStatus === OrderStatus.PAID
-    )
-  },
-
-  // REJECT PAYMENT - Admin rejects payment proof
-  'reject_payment': (ctx) => {
-    const { currentOrder, nextPaymentStatus, nextOrderStatus, actor } = ctx
-    return (
-      actor === 'admin' &&
-      currentOrder.payment_status === PaymentStatus.WAITING_CONFIRMATION &&
-      nextPaymentStatus === PaymentStatus.FAILED &&
-      nextOrderStatus === OrderStatus.PENDING_PAYMENT
+      currentOrder.payment_method === PaymentMethod.TRANSFER &&
+      currentOrder.payment_status === PaymentStatus.PENDING &&
+      nextPaymentStatus === PaymentStatus.PAID
     )
   },
 
@@ -107,41 +85,29 @@ const TRANSITION_RULES: Record<string, (ctx: TransitionContext) => boolean> = {
     const { currentOrder, nextOrderStatus, actor } = ctx
     return (
       actor === 'admin' &&
-      currentOrder.payment_status === PaymentStatus.PAID &&
-      currentOrder.order_status === OrderStatus.PAID &&
+      currentOrder.order_status === OrderStatus.CONFIRMED &&
       nextOrderStatus === OrderStatus.PROCESSING
     )
   },
 
-  // COMPLETE ORDER - Admin marks as completed
+  // COMPLETE ORDER - Admin marks order as completed
   'complete_order': (ctx) => {
-    const { currentOrder, nextOrderStatus, nextPaymentStatus, actor } = ctx
+    const { currentOrder, nextOrderStatus, actor } = ctx
     return (
       actor === 'admin' &&
       currentOrder.order_status === OrderStatus.PROCESSING &&
-      nextOrderStatus === OrderStatus.COMPLETED &&
-      nextPaymentStatus === PaymentStatus.PAID
+      nextOrderStatus === OrderStatus.COMPLETED
     )
   },
 
-  // CANCEL ORDER - User can cancel pending_payment, Admin can cancel pending_payment or processing
+  // CANCEL ORDER - Admin cancels order (except completed)
   'cancel_order': (ctx) => {
     const { currentOrder, nextOrderStatus, actor } = ctx
-    
-    if (nextOrderStatus !== OrderStatus.CANCELLED) {
-      return false
-    }
-
-    if (actor === 'user') {
-      return currentOrder.order_status === OrderStatus.PENDING_PAYMENT
-    } else if (actor === 'admin') {
-      return (
-        currentOrder.order_status === OrderStatus.PENDING_PAYMENT ||
-        currentOrder.order_status === OrderStatus.PROCESSING
-      )
-    }
-    
-    return false
+    return (
+      actor === 'admin' &&
+      currentOrder.order_status !== OrderStatus.COMPLETED &&
+      nextOrderStatus === OrderStatus.CANCELLED
+    )
   },
 }
 
@@ -185,53 +151,30 @@ export function assertOrderTransition(context: TransitionContext): void {
 
 /**
  * Get initial order state based on payment method
+ * All orders start as pending regardless of payment method
  */
 export function getInitialOrderState(paymentMethod: PaymentMethod): OrderState {
-  if (paymentMethod === PaymentMethod.COD) {
-    return {
-      order_status: OrderStatus.PROCESSING,
-      payment_status: PaymentStatus.UNPAID,
-      payment_method: PaymentMethod.COD,
-    }
-  } else {
-    return {
-      order_status: OrderStatus.PENDING_PAYMENT,
-      payment_status: PaymentStatus.UNPAID,
-      payment_method: PaymentMethod.BANK_TRANSFER,
-    }
+  return {
+    order_status: OrderStatus.PENDING,
+    payment_status: PaymentStatus.PENDING,
+    payment_method: paymentMethod,
   }
 }
 
 /**
- * Check if order can be cancelled by actor
+ * Check if order can be cancelled by admin
  */
-export function canCancelOrder(order: OrderState, actor: UserRole): boolean {
-  try {
-    assertOrderTransition({
-      currentOrder: order,
-      nextOrderStatus: OrderStatus.CANCELLED,
-      actor,
-      action: 'cancel_order',
-    })
-    return true
-  } catch {
-    return false
-  }
+export function canCancelOrder(order: OrderState): boolean {
+  // Cannot cancel completed orders
+  return order.order_status !== OrderStatus.COMPLETED
 }
 
 /**
- * Check if payment proof can be uploaded
+ * Check if payment can be marked as paid
  */
-export function canUploadPaymentProof(order: OrderState): boolean {
-  try {
-    assertOrderTransition({
-      currentOrder: order,
-      nextPaymentStatus: PaymentStatus.WAITING_CONFIRMATION,
-      actor: 'user',
-      action: 'upload_payment_proof',
-    })
-    return true
-  } catch {
-    return false
-  }
+export function canMarkAsPaid(order: OrderState): boolean {
+  return (
+    order.payment_method === PaymentMethod.TRANSFER &&
+    order.payment_status === PaymentStatus.PENDING
+  )
 }

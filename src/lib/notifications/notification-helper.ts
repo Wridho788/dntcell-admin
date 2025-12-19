@@ -13,14 +13,11 @@ export type NotificationType =
   | 'negotiation_rejected'
   | 'negotiation_countered'
   | 'new_order'
-  | 'order_status_updated'
-  | 'order_payment_updated'
-  | 'payment_proof_uploaded'
-  | 'payment_approved'
-  | 'payment_rejected'
+  | 'order_confirmed'
   | 'order_processing'
   | 'order_completed'
   | 'order_cancelled'
+  | 'payment_confirmed'
   | 'system_message'
 
 interface NotificationParams {

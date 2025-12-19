@@ -9,14 +9,14 @@ import { logActivity } from '@/api/_core/activity-logger'
 import { sendUserNotification } from '@/lib/notifications/notification-helper'
 import { 
   assertOrderTransition, 
-  OrderStatus 
+  PaymentStatus 
 } from '@/lib/domain/order-states'
 
-const cancelOrderSchema = z.object({
-  cancel_reason: z.string().min(5, { message: 'Cancel reason must be at least 5 characters' }),
+const markAsPaidSchema = z.object({
+  admin_note: z.string().optional(),
 })
 
-// POST /api/orders/:id/cancel - Cancel order (USER or ADMIN)
+// POST /api/orders/:id/mark-paid - Admin marks payment as received (transfer only)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -27,22 +27,22 @@ export async function POST(
       return unauthorizedResponse()
     }
 
-    // Only admins can cancel orders
+    // Only admins can mark as paid
     if (!auth.isAdmin) {
-      return errorResponse('Only admins can cancel orders', 403)
+      return errorResponse('Only admins can mark payments as paid', 403)
     }
 
     const { id: orderId } = params
 
-    // Validate request body
-    const validation = await parseRequestBody(request, cancelOrderSchema)
+    // Validate request body (optional admin note)
+    const validation = await parseRequestBody(request, markAsPaidSchema)
     if (!validation.success) {
       return errorResponse(validation.error, 422)
     }
 
-    const { cancel_reason } = validation.data
+    const { admin_note } = validation.data
 
-    // 1. Get order with details
+    // 1. Get order with buyer details
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -61,27 +61,27 @@ export async function POST(
     try {
       assertOrderTransition({
         currentOrder: {
-          order_status: order.order_status as OrderStatus,
-          payment_status: order.payment_status,
+          order_status: order.order_status,
+          payment_status: order.payment_status as PaymentStatus,
           payment_method: order.payment_method,
         },
-        nextOrderStatus: OrderStatus.CANCELLED,
+        nextPaymentStatus: PaymentStatus.PAID,
         actor: 'admin',
-        action: 'cancel_order',
+        action: 'mark_as_paid',
       })
     } catch (error: any) {
       return errorResponse(
-        error.message || 'Cannot cancel this order',
+        error.message || 'Cannot mark this order as paid',
         error.status || 409
       )
     }
 
-    // 3. Update order status to cancelled
+    // 3. Update payment status to paid
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
-        order_status: OrderStatus.CANCELLED,
-        cancel_reason,
+        payment_status: PaymentStatus.PAID,
+        admin_note: admin_note || order.admin_note,
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId)
@@ -92,57 +92,34 @@ export async function POST(
       return errorResponse(updateError.message)
     }
 
-    // 4. Log status change in order_status_logs
-    await supabaseAdmin.from('order_status_logs').insert({
-      order_id: orderId,
-      from_status: order.order_status,
-      to_status: OrderStatus.CANCELLED,
-      changed_by: auth.userId,
-    })
-
-    // 5. Return stock to product (atomic increment)
-    await supabaseAdmin.rpc('increment_product_stock', {
-      p_product_id: order.product_id,
-      p_quantity: 1,
-    })
-
-    // 6. If negotiation was used, mark it as unused so it can be used again
-    if (order.negotiation_id) {
-      await supabaseAdmin
-        .from('negotiations')
-        .update({ used: false })
-        .eq('id', order.negotiation_id)
-    }
-
-    // 7. Send notification to buyer
+    // 4. Send notification to buyer
     if (order.buyer?.user_id) {
       await sendUserNotification({
         userId: order.buyer.user_id,
-        type: 'order_cancelled',
-        title: 'Order Cancelled',
-        message: `Your order for ${order.product?.name} has been cancelled`,
+        type: 'payment_confirmed',
+        title: 'Payment Confirmed',
+        message: `Payment for ${order.product?.name} has been confirmed`,
         data: {
           order_id: orderId,
           product_name: order.product?.name,
-          cancel_reason,
         },
         url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${orderId}`,
       })
     }
 
-    // 8. Log activity
+    // 5. Log activity
     await logActivity({
       admin_id: auth.userId,
-      action: 'ORDER_CANCELLED',
+      action: 'PAYMENT_MARKED_PAID',
       meta: {
         order_id: orderId,
-        previous_order_status: order.order_status,
-        new_order_status: OrderStatus.CANCELLED,
-        cancel_reason,
+        previous_payment_status: order.payment_status,
+        new_payment_status: PaymentStatus.PAID,
+        admin_note,
       },
     })
 
-    return successResponse(updatedOrder, 'Order cancelled successfully')
+    return successResponse(updatedOrder, 'Payment marked as paid successfully')
   } catch (error) {
     return handleApiError(error)
   }
