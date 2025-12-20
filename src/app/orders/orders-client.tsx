@@ -41,10 +41,12 @@ import { AdminLayout } from "@/components/layout";
 
 const orderStatusColors: Record<OrderStatus, string> = {
   pending: "bg-yellow-500",
-  confirmed: "bg-blue-500",
-  processing: "bg-indigo-500",
+  waiting_payment: "bg-blue-500",
+  waiting_meetup: "bg-purple-500",
+  paid: "bg-cyan-500",
   completed: "bg-green-500",
   cancelled: "bg-red-500",
+  rejected: "bg-gray-500",
 };
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
@@ -131,8 +133,10 @@ export function OrdersClient() {
     total: data?.total || 0,
     pending:
       data?.orders.filter((o) => o.order_status === "pending").length || 0,
-    processing:
-      data?.orders.filter((o) => o.order_status === "processing").length || 0,
+    waiting_payment:
+      data?.orders.filter((o) => o.order_status === "waiting_payment").length || 0,
+    paid:
+      data?.orders.filter((o) => o.order_status === "paid").length || 0,
     completed:
       data?.orders.filter((o) => o.order_status === "completed").length || 0,
     unpaidAmount:
@@ -203,7 +207,17 @@ export function OrdersClient() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {stats.processing}
+                {stats.waiting_payment}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-cyan-600">
+                {stats.paid}
               </div>
             </CardContent>
           </Card>
@@ -265,9 +279,12 @@ export function OrdersClient() {
                     <SelectContent>
                       <SelectItem value="all">Semua Status</SelectItem>
                       <SelectItem value="pending">Tertunda</SelectItem>
-                      <SelectItem value="processing">Diproses</SelectItem>
+                      <SelectItem value="waiting_payment">Menunggu Pembayaran</SelectItem>
+                      <SelectItem value="waiting_meetup">Menunggu Meetup</SelectItem>
+                      <SelectItem value="paid">Dibayar</SelectItem>
                       <SelectItem value="completed">Selesai</SelectItem>
-                      <SelectItem value="canceled">Dibatalkan</SelectItem>
+                      <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                      <SelectItem value="rejected">Ditolak</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

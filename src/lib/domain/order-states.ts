@@ -1,15 +1,17 @@
 /**
- * Order State Machine
+ * Order State Machine - Sprint 2
  * Admin panel is the single source of truth for order management
  * User app only submits intent, admin controls all state transitions
  */
 
 export enum OrderStatus {
   PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  PROCESSING = 'processing',
+  WAITING_PAYMENT = 'waiting_payment',
+  WAITING_MEETUP = 'waiting_meetup',
+  PAID = 'paid',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
+  REJECTED = 'rejected',
 }
 
 export enum PaymentStatus {
@@ -46,7 +48,7 @@ export interface TransitionContext {
 }
 
 /**
- * Valid state transitions mapping
+ * Valid state transitions mapping - Sprint 2
  * Each key represents an action, mapped to validation rules
  */
 const TRANSITION_RULES: Record<string, (ctx: TransitionContext) => boolean> = {
@@ -59,34 +61,47 @@ const TRANSITION_RULES: Record<string, (ctx: TransitionContext) => boolean> = {
     )
   },
 
-  // CONFIRM ORDER - Admin confirms order is valid
-  'confirm_order': (ctx) => {
+  // APPROVE ORDER - Admin approves pending order
+  'approve_order': (ctx) => {
     const { currentOrder, nextOrderStatus, actor } = ctx
     return (
       actor === 'admin' &&
       currentOrder.order_status === OrderStatus.PENDING &&
-      nextOrderStatus === OrderStatus.CONFIRMED
+      (nextOrderStatus === OrderStatus.WAITING_PAYMENT || nextOrderStatus === OrderStatus.WAITING_MEETUP)
     )
   },
 
-  // MARK AS PAID - Admin marks payment as received (transfer only)
-  'mark_as_paid': (ctx) => {
+  // REJECT ORDER - Admin rejects pending order
+  'reject_order': (ctx) => {
+    const { currentOrder, nextOrderStatus, actor } = ctx
+    return (
+      actor === 'admin' &&
+      currentOrder.order_status === OrderStatus.PENDING &&
+      nextOrderStatus === OrderStatus.REJECTED
+    )
+  },
+
+  // VERIFY PAYMENT - Admin verifies transfer payment
+  'verify_payment': (ctx) => {
     const { currentOrder, nextPaymentStatus, actor } = ctx
     return (
       actor === 'admin' &&
       currentOrder.payment_method === PaymentMethod.TRANSFER &&
+      currentOrder.order_status === OrderStatus.WAITING_PAYMENT &&
       currentOrder.payment_status === PaymentStatus.PENDING &&
       nextPaymentStatus === PaymentStatus.PAID
     )
   },
 
-  // PROCESS ORDER - Admin starts processing
-  'process_order': (ctx) => {
-    const { currentOrder, nextOrderStatus, actor } = ctx
+  // MARK AS PAID - Admin marks COD payment as paid after meetup
+  'mark_as_paid': (ctx) => {
+    const { currentOrder, nextOrderStatus, nextPaymentStatus, actor } = ctx
     return (
       actor === 'admin' &&
-      currentOrder.order_status === OrderStatus.CONFIRMED &&
-      nextOrderStatus === OrderStatus.PROCESSING
+      currentOrder.payment_method === PaymentMethod.COD &&
+      currentOrder.order_status === OrderStatus.WAITING_MEETUP &&
+      nextOrderStatus === OrderStatus.PAID &&
+      nextPaymentStatus === PaymentStatus.PAID
     )
   },
 
@@ -95,17 +110,19 @@ const TRANSITION_RULES: Record<string, (ctx: TransitionContext) => boolean> = {
     const { currentOrder, nextOrderStatus, actor } = ctx
     return (
       actor === 'admin' &&
-      currentOrder.order_status === OrderStatus.PROCESSING &&
+      currentOrder.order_status === OrderStatus.PAID &&
+      currentOrder.payment_status === PaymentStatus.PAID &&
       nextOrderStatus === OrderStatus.COMPLETED
     )
   },
 
-  // CANCEL ORDER - Admin cancels order (except completed)
+  // CANCEL ORDER - Admin cancels order (except completed and rejected)
   'cancel_order': (ctx) => {
     const { currentOrder, nextOrderStatus, actor } = ctx
     return (
       actor === 'admin' &&
       currentOrder.order_status !== OrderStatus.COMPLETED &&
+      currentOrder.order_status !== OrderStatus.REJECTED &&
       nextOrderStatus === OrderStatus.CANCELLED
     )
   },
@@ -165,16 +182,67 @@ export function getInitialOrderState(paymentMethod: PaymentMethod): OrderState {
  * Check if order can be cancelled by admin
  */
 export function canCancelOrder(order: OrderState): boolean {
-  // Cannot cancel completed orders
-  return order.order_status !== OrderStatus.COMPLETED
+  // Cannot cancel completed or rejected orders
+  return order.order_status !== OrderStatus.COMPLETED && order.order_status !== OrderStatus.REJECTED
 }
 
 /**
- * Check if payment can be marked as paid
+ * Check if payment can be verified (transfer)
+ */
+export function canVerifyPayment(order: OrderState): boolean {
+  return (
+    order.payment_method === PaymentMethod.TRANSFER &&
+    order.order_status === OrderStatus.WAITING_PAYMENT &&
+    order.payment_status === PaymentStatus.PENDING
+  )
+}
+
+/**
+ * Check if payment can be marked as paid (COD after meetup)
  */
 export function canMarkAsPaid(order: OrderState): boolean {
   return (
-    order.payment_method === PaymentMethod.TRANSFER &&
+    order.payment_method === PaymentMethod.COD &&
+    order.order_status === OrderStatus.WAITING_MEETUP &&
     order.payment_status === PaymentStatus.PENDING
   )
+}
+
+/**
+ * Check if order can be completed
+ */
+export function canCompleteOrder(order: OrderState): boolean {
+  return (
+    order.order_status === OrderStatus.PAID &&
+    order.payment_status === PaymentStatus.PAID
+  )
+}
+
+/**
+ * Check if order can be approved
+ */
+export function canApproveOrder(order: OrderState): boolean {
+  return order.order_status === OrderStatus.PENDING
+}
+
+/**
+ * Check if order can be rejected
+ */
+export function canRejectOrder(order: OrderState): boolean {
+  return order.order_status === OrderStatus.PENDING
+}
+
+/**
+ * Get available actions for current order state
+ */
+export function getAvailableActions(order: OrderState): string[] {
+  const actions: string[] = []
+  
+  if (canApproveOrder(order)) actions.push('approve_order', 'reject_order')
+  if (canVerifyPayment(order)) actions.push('verify_payment')
+  if (canMarkAsPaid(order)) actions.push('mark_as_paid')
+  if (canCompleteOrder(order)) actions.push('complete_order')
+  if (canCancelOrder(order)) actions.push('cancel_order')
+  
+  return actions
 }

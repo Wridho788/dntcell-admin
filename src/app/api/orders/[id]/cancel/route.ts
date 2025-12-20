@@ -98,13 +98,20 @@ export async function POST(
       from_status: order.order_status,
       to_status: OrderStatus.CANCELLED,
       changed_by: auth.userId,
+      note: cancel_reason,
     })
 
-    // 5. Return stock to product (atomic increment)
-    await supabaseAdmin.rpc('increment_product_stock', {
-      p_product_id: order.product_id,
-      p_quantity: 1,
-    })
+    // 5. Return stock to product if it was already reduced (paid or completed status)
+    // Only return stock if order was in paid status (stock was already reduced)
+    if (order.order_status === OrderStatus.PAID) {
+      await supabaseAdmin
+        .from('products')
+        .update({
+          stock: order.product.stock + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.product_id)
+    }
 
     // 6. If negotiation was used, mark it as unused so it can be used again
     if (order.negotiation_id) {
@@ -114,21 +121,18 @@ export async function POST(
         .eq('id', order.negotiation_id)
     }
 
-    // 7. Send notification to buyer
-    if (order.buyer?.user_id) {
-      await sendUserNotification({
-        userId: order.buyer.user_id,
-        type: 'order_cancelled',
-        title: 'Order Cancelled',
-        message: `Your order for ${order.product?.name} has been cancelled`,
-        data: {
-          order_id: orderId,
-          product_name: order.product?.name,
-          cancel_reason,
-        },
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${orderId}`,
-      })
-    }
+    // 7. Create notification for buyer (silent mode - Sprint 2)
+    await supabaseAdmin.from('notifications').insert({
+      user_id: order.buyer_id,
+      title: 'Order Cancelled',
+      message: `Your order for ${order.product?.name} has been cancelled. Reason: ${cancel_reason}`,
+      type: 'order_cancelled',
+      meta: {
+        order_id: orderId,
+        product_id: order.product_id,
+        cancel_reason,
+      },
+    })
 
     // 8. Log activity
     await logActivity({
@@ -136,13 +140,18 @@ export async function POST(
       action: 'ORDER_CANCELLED',
       meta: {
         order_id: orderId,
-        previous_order_status: order.order_status,
-        new_order_status: OrderStatus.CANCELLED,
+        product_id: order.product_id,
+        buyer_id: order.buyer_id,
+        from_status: order.order_status,
+        to_status: OrderStatus.CANCELLED,
         cancel_reason,
       },
     })
 
-    return successResponse(updatedOrder, 'Order cancelled successfully')
+    return successResponse({
+      order: updatedOrder,
+      message: 'Order cancelled successfully',
+    })
   } catch (error) {
     return handleApiError(error)
   }

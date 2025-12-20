@@ -63,7 +63,7 @@ export async function POST(
       assertOrderTransition({
         currentOrder: {
           order_status: order.order_status as OrderStatus,
-          payment_status: order.payment_status,
+          payment_status: order.payment_status as PaymentStatus,
           payment_method: order.payment_method,
         },
         nextOrderStatus: OrderStatus.COMPLETED,
@@ -99,36 +99,39 @@ export async function POST(
       from_status: order.order_status,
       to_status: OrderStatus.COMPLETED,
       changed_by: auth.userId,
+      note: admin_note || 'Order completed',
     })
 
-    // 4. Send notification to buyer
-    if (order.buyer?.user_id) {
-      await sendUserNotification({
-        userId: order.buyer.user_id,
-        type: 'order_completed',
-        title: 'Order Completed',
-        message: `Your order for ${order.product?.name} has been completed`,
-        data: {
-          order_id: orderId,
-          product_name: order.product?.name,
-        },
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${orderId}`,
-      })
-    }
+    // 5. Create notification for buyer (silent mode - Sprint 2)
+    await supabaseAdmin.from('notifications').insert({
+      user_id: order.buyer_id,
+      title: 'Order Completed',
+      message: `Your order for ${order.product?.name} has been completed. Thank you for your purchase!`,
+      type: 'order_completed',
+      meta: {
+        order_id: orderId,
+        product_id: order.product_id,
+      },
+    })
 
-    // 5. Log activity
+    // 6. Log activity
     await logActivity({
       admin_id: auth.userId,
       action: 'ORDER_COMPLETED',
       meta: {
         order_id: orderId,
-        previous_order_status: order.order_status,
-        new_order_status: OrderStatus.COMPLETED,
+        product_id: order.product_id,
+        buyer_id: order.buyer_id,
+        from_status: order.order_status,
+        to_status: OrderStatus.COMPLETED,
         admin_note,
       },
     })
 
-    return successResponse(updatedOrder, 'Order completed successfully')
+    return successResponse({
+      order: updatedOrder,
+      message: 'Order completed successfully',
+    })
   } catch (error) {
     return handleApiError(error)
   }

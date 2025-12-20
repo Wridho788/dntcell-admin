@@ -40,10 +40,12 @@ import { OrderStatusHistory } from "@/components/activity/order-status-history"
 
 const orderStatusColors: Record<OrderStatus, string> = {
   pending: "bg-yellow-500",
-  confirmed: "bg-blue-500",
-  processing: "bg-indigo-500",
+  waiting_payment: "bg-blue-500",
+  waiting_meetup: "bg-purple-500",
+  paid: "bg-cyan-500",
   completed: "bg-green-500",
   cancelled: "bg-red-500",
+  rejected: "bg-gray-500",
 }
 
 const paymentStatusColors: Record<PaymentStatus, string> = {

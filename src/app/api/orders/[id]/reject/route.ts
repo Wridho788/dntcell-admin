@@ -9,15 +9,15 @@ import { logActivity } from '@/api/_core/activity-logger'
 import { sendUserNotification } from '@/lib/notifications/notification-helper'
 import { 
   assertOrderTransition, 
-  PaymentStatus,
   OrderStatus 
 } from '@/lib/domain/order-states'
 
-const processOrderSchema = z.object({
+const rejectOrderSchema = z.object({
+  reject_reason: z.string().min(10, { message: 'Reject reason must be at least 10 characters' }),
   admin_note: z.string().optional(),
 })
 
-// POST /api/orders/:id/process - Start processing order (ADMIN only)
+// POST /api/orders/:id/reject - Reject order (ADMIN only)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -28,28 +28,28 @@ export async function POST(
       return unauthorizedResponse()
     }
 
-    // Only admins can process orders
+    // Only admins can reject orders
     if (!auth.isAdmin) {
-      return errorResponse('Only admins can process orders', 403)
+      return errorResponse('Only admins can reject orders', 403)
     }
 
     const { id: orderId } = params
 
-    // Validate request body (optional admin note)
-    const validation = await parseRequestBody(request, processOrderSchema)
+    // Validate request body
+    const validation = await parseRequestBody(request, rejectOrderSchema)
     if (!validation.success) {
       return errorResponse(validation.error, 422)
     }
 
-    const { admin_note } = validation.data
+    const { reject_reason, admin_note } = validation.data
 
     // 1. Get order with buyer details
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select(`
         *,
-        product:products(name),
-        buyer:profiles!orders_buyer_id_fkey(user_id, onesignal_player_id)
+        product:products(id, name),
+        buyer:profiles!orders_buyer_id_fkey(user_id, full_name, onesignal_player_id)
       `)
       .eq('id', orderId)
       .single()
@@ -66,22 +66,23 @@ export async function POST(
           payment_status: order.payment_status,
           payment_method: order.payment_method,
         },
-        nextOrderStatus: OrderStatus.PROCESSING,
+        nextOrderStatus: OrderStatus.REJECTED,
         actor: 'admin',
-        action: 'process_order',
+        action: 'reject_order',
       })
     } catch (error: any) {
       return errorResponse(
-        error.message || 'Cannot process this order',
+        error.message || 'Cannot reject this order',
         error.status || 409
       )
     }
 
-    // 3. Update order status to processing
+    // 3. Update order status to rejected
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
-        order_status: OrderStatus.PROCESSING,
+        order_status: OrderStatus.REJECTED,
+        cancel_reason: reject_reason,
         admin_note: admin_note || order.admin_note,
         updated_at: new Date().toISOString(),
       })
@@ -97,38 +98,42 @@ export async function POST(
     await supabaseAdmin.from('order_status_logs').insert({
       order_id: orderId,
       from_status: order.order_status,
-      to_status: OrderStatus.PROCESSING,
+      to_status: OrderStatus.REJECTED,
       changed_by: auth.userId,
+      note: reject_reason,
     })
 
-    // 4. Send notification to buyer
-    if (order.buyer?.user_id) {
-      await sendUserNotification({
-        userId: order.buyer.user_id,
-        type: 'order_processing',
-        title: 'Order Being Processed',
-        message: `Your order for ${order.product?.name} is being processed`,
-        data: {
-          order_id: orderId,
-          product_name: order.product?.name,
-        },
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${orderId}`,
-      })
-    }
-
-    // 5. Log activity
+    // 5. Log admin activity
     await logActivity({
       admin_id: auth.userId,
-      action: 'ORDER_PROCESSING',
+      action: 'ORDER_REJECTED',
       meta: {
         order_id: orderId,
-        previous_order_status: order.order_status,
-        new_order_status: OrderStatus.PROCESSING,
-        admin_note,
+        product_id: order.product_id,
+        buyer_id: order.buyer_id,
+        from_status: order.order_status,
+        to_status: OrderStatus.REJECTED,
+        reject_reason,
       },
     })
 
-    return successResponse(updatedOrder, 'Order is now being processed')
+    // 6. Create notification for buyer (silent mode - Sprint 2)
+    await supabaseAdmin.from('notifications').insert({
+      user_id: order.buyer_id,
+      title: 'Order Rejected',
+      message: `Your order for ${order.product?.name} has been rejected. Reason: ${reject_reason}`,
+      type: 'order_rejected',
+      meta: {
+        order_id: orderId,
+        product_id: order.product_id,
+        reject_reason,
+      },
+    })
+
+    return successResponse({
+      order: updatedOrder,
+      message: 'Order rejected successfully',
+    })
   } catch (error) {
     return handleApiError(error)
   }
